@@ -1,8 +1,11 @@
+using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using GriForms.Application;
 using GriForms.Application.Abstractions;
+using GriForms.Application.Telemetry;
 using GriForms.Infrastructure;
 using GriForms.Web.Components;
 using GriForms.Web.Components.Account;
@@ -53,6 +56,27 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
+// Telemetry: batasi tiap device (dikenali dari X-Device-Key) 10 request per menit
+builder.Services.AddRateLimiter(options =>
+{
+    // Header kosong atau tidak masuk akal panjangnya dipartisi per IP, bukan per nilai mentah:
+    // satu klien tidak bisa membuat partisi baru tanpa batas dengan key acak, dan tidak berbagi partisi dengan device sah
+    options.AddPolicy("telemetry", http =>
+    {
+        var key = http.Request.Headers["X-Device-Key"].ToString();
+        var partition = key.Length is > 0 and <= 128
+            ? $"key:{key}"
+            : $"ip:{http.Connection.RemoteIpAddress}";
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partition,
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) });
+    });
+    // Respons berisi body agar tidak di-re-execute oleh UseStatusCodePagesWithReExecute
+    options.OnRejected = (ctx, _) => new ValueTask(
+        Results.Problem("Terlalu banyak request dari device ini.", statusCode: StatusCodes.Status429TooManyRequests)
+            .ExecuteAsync(ctx.HttpContext));
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -69,9 +93,23 @@ else
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 app.UseHttpsRedirection();
 
+app.UseRateLimiter();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+
+// Ingest telemetry dari device (ESP32). Endpoint JSON tidak terkena antiforgery.
+// Saat development jalankan profile http: POST ke http:// yang di-redirect ke https akan gagal di device.
+app.MapPost("/api/telemetry", async (
+        [FromHeader(Name = "X-Device-Key")] string? key,
+        TelemetryPayload payload, ITelemetryIngest ingest, CancellationToken ct) =>
+    {
+        // Header kosong ditolak di IngestAsync, jadi tidak perlu dicek di sini
+        var result = await ingest.IngestAsync(key ?? "", payload, ct);
+        return result.IsSuccess ? Results.Accepted() : Results.Problem(result.Error, statusCode: result.StatusCode);
+    })
+    .RequireRateLimiting("telemetry");
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

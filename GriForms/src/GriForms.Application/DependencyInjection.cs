@@ -1,6 +1,8 @@
+using GriForms.Application.Abstractions;
 using GriForms.Application.Calculations;
 using GriForms.Application.Consolidation;
 using GriForms.Application.Forms;
+using GriForms.Application.Telemetry;
 using GriForms.Application.Validation;
 using GriForms.Application.Validation.Rules;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,6 +33,8 @@ public static class DependencyInjection
         services
             .AddCardFactory<NarrativeCardFactory>()
             .AddCardFactory<MonthlyCardFactory>();
+
+        services.AddSingleton<ITelemetryNotifier, TelemetryNotifier>();
 
         return services;
     }

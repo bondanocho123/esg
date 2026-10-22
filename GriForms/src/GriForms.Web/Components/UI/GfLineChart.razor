@@ -1,0 +1,100 @@
+@using System.Globalization
+@* Grafik garis deret waktu (SVG). Celah data lebih dari GapAfter digambar terputus. *@
+<div class="@($"w-full {Class}")">
+    @if (Points.Count < 2)
+    {
+        <p class="m-0 py-8 text-center text-xs text-muted">@EmptyText</p>
+    }
+    else
+    {
+        <div class="flex items-stretch gap-2">
+            <div class="flex w-10 shrink-0 flex-col justify-between text-right text-[10px] text-muted tabular-nums">
+                <span>@Format(_max)</span>
+                <span>@Format((_min + _max) / 2)</span>
+                <span>@Format(_min)</span>
+            </div>
+            <svg viewBox="0 0 @Width @Height" preserveAspectRatio="none" class="h-40 min-w-0 flex-1" role="img" aria-label="@Label">
+                @for (var i = 0; i <= 2; i++)
+                {
+                    var y = Num(Height * i / 2.0);
+                    <line x1="0" y1="@y" x2="@Width" y2="@y" class="stroke-line" stroke-width="1" vector-effect="non-scaling-stroke" />
+                }
+                @foreach (var segment in Segments())
+                {
+                    <polyline points="@segment" fill="none" class="@StrokeClass" stroke-width="2"
+                              stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke" />
+                }
+            </svg>
+        </div>
+        <div class="mt-1 flex justify-between pl-12 text-[10px] text-muted tabular-nums">
+            <span>@From.ToLocalTime().ToString("dd MMM HH:mm")</span>
+            <span>@To.ToLocalTime().ToString("dd MMM HH:mm")</span>
+        </div>
+    }
+</div>
+
+@code {
+    private const int Width = 600;
+    private const int Height = 160;
+
+    // Titik waktu dalam UTC
+    [Parameter, EditorRequired] public IReadOnlyList<(DateTime At, double Value)> Points { get; set; } = [];
+    [Parameter, EditorRequired] public DateTime From { get; set; }
+    [Parameter, EditorRequired] public DateTime To { get; set; }
+    [Parameter] public string? Unit { get; set; }
+    [Parameter] public string? Label { get; set; }
+    [Parameter] public TimeSpan GapAfter { get; set; } = TimeSpan.FromMinutes(5);
+    [Parameter] public GfVariant Variant { get; set; } = GfVariant.Primary;
+    [Parameter] public string EmptyText { get; set; } = "Belum ada data.";
+    [Parameter] public string? Class { get; set; }
+
+    private double _min;
+    private double _max;
+
+    // Kelas ditulis utuh agar terdeteksi scanner Tailwind
+    private string StrokeClass => Variant switch
+    {
+        GfVariant.Secondary => "stroke-secondary-dark",
+        GfVariant.Tertiary => "stroke-tertiary",
+        _ => "stroke-primary",
+    };
+
+    protected override void OnParametersSet()
+    {
+        if (Points.Count == 0) return;
+        _min = Points.Min(p => p.Value);
+        _max = Points.Max(p => p.Value);
+        // Beri ruang agar garis datar tidak menempel di tepi
+        var pad = _max > _min ? (_max - _min) * 0.1 : 1;
+        _min -= pad;
+        _max += pad;
+    }
+
+    private IEnumerable<string> Segments()
+    {
+        var span = Math.Max((To - From).TotalSeconds, 1);
+        var current = new List<string>();
+        DateTime? previous = null;
+
+        foreach (var (at, value) in Points)
+        {
+            if (previous is { } prev && at - prev > GapAfter && current.Count > 0)
+            {
+                yield return string.Join(' ', current);
+                current.Clear();
+            }
+
+            var x = (at - From).TotalSeconds / span * Width;
+            var y = Height - (value - _min) / (_max - _min) * Height;
+            current.Add($"{Num(x)},{Num(y)}");
+            previous = at;
+        }
+
+        if (current.Count > 0) yield return string.Join(' ', current);
+    }
+
+    // Koordinat SVG wajib memakai titik desimal, apa pun kultur server
+    private static string Num(double v) => v.ToString("0.##", CultureInfo.InvariantCulture);
+
+    private string Format(double v) => $"{v:0.#}{Unit}";
+}
