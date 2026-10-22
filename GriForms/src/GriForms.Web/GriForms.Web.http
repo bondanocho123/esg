@@ -1,0 +1,34 @@
+# Uji endpoint telemetry sebelum memakai ESP32. Jalankan dengan profile http.
+# Ganti DeviceKey dengan API key dari halaman /telemetry (Daftarkan device).
+@Host = http://localhost:5158
+@DeviceKey = tempel-api-key-di-sini
+
+### Payload valid: 202 Accepted
+POST {{Host}}/api/telemetry
+Content-Type: application/json
+X-Device-Key: {{DeviceKey}}
+
+{
+  "recordedAt": "2026-10-22T13:45:00Z",
+  "readings": [
+    { "metric": "temperature", "value": 28.4, "unit": "C" },
+    { "metric": "humidity", "value": 71.0, "unit": "%" }
+  ]
+}
+
+### Di luar rentang DHT11: 422
+POST {{Host}}/api/telemetry
+Content-Type: application/json
+X-Device-Key: {{DeviceKey}}
+
+{
+  "readings": [ { "metric": "temperature", "value": 80, "unit": "C" } ]
+}
+
+### Tanpa API key: 401
+POST {{Host}}/api/telemetry
+Content-Type: application/json
+
+{
+  "readings": [ { "metric": "temperature", "value": 28.4, "unit": "C" } ]
+}

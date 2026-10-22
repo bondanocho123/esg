@@ -1,0 +1,344 @@
+@page "/telemetry"
+
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Authorization
+@using GriForms.Application.Abstractions
+@using GriForms.Application.Telemetry
+
+@attribute [Authorize]
+@implements IDisposable
+
+@inject ITelemetryQueries Queries
+@inject ITelemetryDevices Devices
+@inject ITelemetryNotifier Notifier
+@inject IClock Clock
+@inject ILogger<Telemetry> Logger
+
+<PageTitle>Telemetry</PageTitle>
+
+<GfHeader Title="Telemetry suhu"
+          Subtitle="Suhu dan kelembapan dari sensor di site. Nilai sensor hanya saran, tidak masuk laporan GRI secara otomatis."
+          Icon="@Icons.Material.Filled.Thermostat">
+    <Actions>
+        @if (_sites.Count > 1)
+        {
+            <select class="form-select h-8 text-xs" aria-label="Filter site" @onchange="OnSiteChanged">
+                <option value="">Semua site</option>
+                @foreach (var site in _sites)
+                {
+                    <option value="@site.Id" selected="@(site.Id == _siteFilter)">@site.Name</option>
+                }
+            </select>
+        }
+    </Actions>
+</GfHeader>
+
+@if (!_loaded)
+{
+    <GfText Muted="true">Memuat data sensor...</GfText>
+}
+else if (_devices.Count == 0)
+{
+    <GfCard Title="Belum ada device" Icon="@Icons.Material.Filled.SensorsOff" Variant="GfVariant.Tertiary">
+        <GfText Typo="Typo.body2" Muted="true">
+            Belum ada sensor yang terdaftar untuk site Anda.
+            @(_access.IsAdmin ? "Daftarkan device di bawah, lalu isi API key-nya di firmware ESP32." : "Hubungi admin untuk mendaftarkan device.")
+        </GfText>
+    </GfCard>
+}
+else
+{
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        @foreach (var device in _devices)
+        {
+            var online = device.IsOnline(_now);
+            <GfCard @key="device.DeviceId" Title="@device.Name" Icon="@Icons.Material.Filled.Sensors"
+                    Variant="@(device.DeviceId == _selectedId ? GfVariant.Primary : GfVariant.Secondary)">
+                <HeaderActions>
+                    @if (!device.IsActive)
+                    {
+                        <GfChip Variant="GfVariant.Tertiary" Appearance="GfAppearance.Outlined">Nonaktif</GfChip>
+                    }
+                    else if (online)
+                    {
+                        <GfChip Icon="@Icons.Material.Filled.CheckCircle">Online</GfChip>
+                    }
+                    else
+                    {
+                        <GfChip Variant="GfVariant.Tertiary" Icon="@Icons.Material.Filled.CloudOff">Offline</GfChip>
+                    }
+                </HeaderActions>
+                <ChildContent>
+                    <GfText Typo="Typo.caption" Muted="true" GutterBottom="true">@device.SiteName · @device.Code</GfText>
+                    @if (device.Latest.Count == 0)
+                    {
+                        <GfText Typo="Typo.body2" Muted="true">Belum ada data.</GfText>
+                    }
+                    else
+                    {
+                        <div class="flex flex-wrap gap-6">
+                            @foreach (var reading in device.Latest)
+                            {
+                                <div>
+                                    <GfText Typo="Typo.overline" Muted="true">@LabelOf(reading.Metric)</GfText>
+                                    <p class="m-0 text-2xl font-semibold tracking-tight text-ink tabular-nums">
+                                        @reading.Value.ToString("0.0")<span class="ml-0.5 text-sm font-medium text-muted">@DisplayUnit(reading.Unit)</span>
+                                    </p>
+                                </div>
+                            }
+                        </div>
+                    }
+                    <div class="mt-3 flex items-center justify-between gap-2">
+                        <GfText Typo="Typo.caption" Muted="true">
+                            @(device.LastSeenAt is { } seen ? $"Terakhir: {seen.ToLocalTime():dd MMM HH:mm:ss}" : "Belum pernah mengirim")
+                        </GfText>
+                        @if (device.DeviceId != _selectedId)
+                        {
+                            <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.ShowChart"
+                                      OnClick="() => SelectAsync(device.DeviceId)">Grafik</GfButton>
+                        }
+                    </div>
+                </ChildContent>
+            </GfCard>
+        }
+    </div>
+
+    @if (Selected is { } selected)
+    {
+        <GfCard Title="@($"{selected.Name}: {ChartWindow.TotalHours:0} jam terakhir")" Icon="@Icons.Material.Filled.ShowChart">
+            <div class="grid gap-4 lg:grid-cols-2">
+                @foreach (var spec in TelemetryMetrics.Known.Values)
+                {
+                    <div>
+                        <GfText Typo="Typo.subtitle2" GutterBottom="true">@spec.Label (@DisplayUnit(spec.Unit))</GfText>
+                        <GfLineChart Points="@PointsOf(spec.Metric)" From="@(_now - ChartWindow)" To="@_now"
+                                     Unit="@DisplayUnit(spec.Unit)" Label="@spec.Label"
+                                     Variant="@(spec.Metric == TelemetryMetrics.Temperature ? GfVariant.Tertiary : GfVariant.Secondary)"
+                                     EmptyText="Belum ada data dalam 24 jam terakhir." />
+                    </div>
+                }
+            </div>
+        </GfCard>
+    }
+}
+
+@if (_access.IsAdmin)
+{
+    <GfCard Title="Daftarkan device" Icon="@Icons.Material.Filled.AddCircle" Variant="GfVariant.Tertiary">
+        <div class="grid gap-3 sm:grid-cols-3">
+            <div>
+                <GfLabel For="device-code" Required="true">Kode</GfLabel>
+                <input id="device-code" class="form-control" placeholder="esp32-ho-01" @bind="_newCode" />
+            </div>
+            <div>
+                <GfLabel For="device-name">Nama</GfLabel>
+                <input id="device-name" class="form-control" placeholder="Sensor ruang server HO" @bind="_newName" />
+            </div>
+            <div>
+                <GfLabel For="device-site" Required="true">Site</GfLabel>
+                <select id="device-site" class="form-select" @bind="_newSiteId">
+                    @foreach (var site in _sites)
+                    {
+                        <option value="@site.Id">@site.Name</option>
+                    }
+                </select>
+            </div>
+        </div>
+        <div class="mt-3 flex flex-wrap items-center gap-3">
+            <GfButton StartIcon="@Icons.Material.Filled.Key" Disabled="_registering" OnClick="RegisterAsync">Daftarkan &amp; buat API key</GfButton>
+            @if (_registerError is not null)
+            {
+                <span class="text-xs text-danger">@_registerError</span>
+            }
+        </div>
+        @if (_issuedKey is not null)
+        {
+            <div class="alert alert-success mt-3 mb-0">
+                API key untuk <strong>@_issuedFor</strong>: <code class="select-all">@_issuedKey</code><br />
+                Salin sekarang ke <code>secrets.h</code> di firmware. Key ini tidak akan ditampilkan lagi.
+            </div>
+        }
+    </GfCard>
+}
+
+@code {
+    private static readonly TimeSpan ChartWindow = TimeSpan.FromHours(24);
+
+    // Notifier memberi data baru seketika; timer menjaga status online/offline tetap benar saat device diam
+    private static readonly TimeSpan StatusRefresh = TimeSpan.FromSeconds(30);
+
+    [CascadingParameter] private Task<AuthenticationState> AuthState { get; set; } = null!;
+
+    private readonly SemaphoreSlim _gate = new(1, 1);   // satu DbContext per circuit: muat ulang tidak boleh tumpang tindih
+    private readonly CancellationTokenSource _cts = new();
+
+    private TelemetryAccess _access = TelemetryAccess.None;
+    private IReadOnlyList<SiteOption> _sites = [];
+    private IReadOnlyList<DeviceSnapshot> _devices = [];
+    private IReadOnlyList<TelemetryPoint> _series = [];
+    private int? _siteFilter;
+    private int? _selectedId;
+    private DateTime _now;
+    private bool _loaded;
+    private bool _subscribed;
+
+    private string _newCode = "";
+    private string _newName = "";
+    private int _newSiteId;
+    private bool _registering;
+    private string? _registerError;
+    private string? _issuedKey;
+    private string? _issuedFor;
+
+    private DeviceSnapshot? Selected => _devices.FirstOrDefault(d => d.DeviceId == _selectedId);
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userId = (await AuthState).User.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (userId is not null)
+            _access = await Queries.GetAccessAsync(userId, _cts.Token);
+
+        _sites = await Queries.GetSitesAsync(_access, _cts.Token);
+        _newSiteId = _sites.FirstOrDefault()?.Id ?? 0;
+
+        await LoadAsync();
+        _loaded = true;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        // Hanya saat interaktif, bukan saat prerender
+        if (!firstRender || _subscribed) return;
+        _subscribed = true;
+        Notifier.ReadingsReceived += OnReadingsReceived;
+        _ = RefreshPeriodicallyAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        await _gate.WaitAsync(_cts.Token);
+        try
+        {
+            _now = Clock.UtcNow;
+            var all = await Queries.GetDevicesAsync(_access, _cts.Token);
+            _devices = _siteFilter is { } siteId ? all.Where(d => d.SiteId == siteId).ToList() : all;
+
+            if (_devices.All(d => d.DeviceId != _selectedId))
+                _selectedId = _devices.FirstOrDefault()?.DeviceId;
+
+            _series = _selectedId is { } id
+                ? await Queries.GetSeriesAsync(_access, id, _now - ChartWindow, _cts.Token)
+                : [];
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
+    private void OnReadingsReceived(int deviceId) => _ = InvokeAsync(RefreshAsync);
+
+    private async Task RefreshPeriodicallyAsync()
+    {
+        using var timer = new PeriodicTimer(StatusRefresh);
+        try
+        {
+            while (await timer.WaitForNextTickAsync(_cts.Token))
+                await InvokeAsync(RefreshAsync);
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    private async Task RefreshAsync()
+    {
+        try
+        {
+            await LoadAsync();
+            StateHasChanged();
+        }
+        catch (Exception ex) when (ex is OperationCanceledException or ObjectDisposedException)
+        {
+            // halaman sudah ditutup
+        }
+        catch (Exception ex)
+        {
+            Logger.LogWarning(ex, "Gagal memuat ulang data telemetry");
+        }
+    }
+
+    private async Task OnSiteChanged(ChangeEventArgs e)
+    {
+        _siteFilter = int.TryParse(e.Value?.ToString(), out var siteId) ? siteId : null;
+        await LoadAsync();
+    }
+
+    private async Task SelectAsync(int deviceId)
+    {
+        _selectedId = deviceId;
+        await LoadAsync();
+    }
+
+    private async Task RegisterAsync()
+    {
+        _registering = true;
+        _registerError = null;
+        _issuedKey = null;
+        try
+        {
+            var code = _newCode.Trim();
+
+            // DbContext scoped dipakai bersama LoadAsync (timer dan notifier), jadi tulis lewat _gate yang sama
+            await _gate.WaitAsync(_cts.Token);
+            try
+            {
+                _issuedKey = await Devices.RegisterAsync(_access, code, _newName, _newSiteId, _cts.Token);
+            }
+            finally
+            {
+                _gate.Release();
+            }
+
+            _issuedFor = code;
+            _newCode = "";
+            _newName = "";
+            await LoadAsync();
+        }
+        catch (InvalidOperationException ex)
+        {
+            _registerError = ex.Message;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _registerError = ex.Message;
+        }
+        catch (OperationCanceledException)
+        {
+            // halaman sudah ditutup
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Gagal mendaftarkan device telemetry");
+            _registerError = "Pendaftaran gagal. Coba lagi.";
+        }
+        finally
+        {
+            _registering = false;
+        }
+    }
+
+    private IReadOnlyList<(DateTime At, double Value)> PointsOf(string metric) =>
+        _series.Where(p => p.Metric == metric).Select(p => (p.RecordedAt, p.Value)).ToList();
+
+    private static string LabelOf(string metric) => TelemetryMetrics.Find(metric)?.Label ?? metric;
+
+    private static string DisplayUnit(string unit) => unit == "C" ? "°C" : unit;
+
+    public void Dispose()
+    {
+        Notifier.ReadingsReceived -= OnReadingsReceived;
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}

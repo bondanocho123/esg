@@ -4,6 +4,7 @@ using GriForms.Infrastructure.Excel;
 using GriForms.Infrastructure.Forms;
 using GriForms.Infrastructure.Persistence;
 using GriForms.Infrastructure.Submissions;
+using GriForms.Infrastructure.Telemetry;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -40,6 +41,9 @@ public static class DependencyInjection
         services.AddScoped<IAnswerWriter, AnswerWriter>();
         services.AddScoped<ISubmissionWorkflow, SubmissionWorkflow>();
         services.AddScoped<IConsolidationQuery, ConsolidationQuery>();
+        services.AddScoped<ITelemetryIngest, TelemetryIngest>();
+        services.AddScoped<ITelemetryQueries, TelemetryQueries>();
+        services.AddScoped<ITelemetryDevices, TelemetryDevices>();
 
         services.AddSingleton<IExcelImporter, DataKonsolidasiImporter>();
         services.AddSingleton<IConsolidationExporter, ClosedXmlConsolidationExporter>();

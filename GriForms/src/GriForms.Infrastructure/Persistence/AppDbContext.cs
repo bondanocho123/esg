@@ -17,11 +17,16 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
     public DbSet<QuestionMapping> QuestionMappings => Set<QuestionMapping>();
     public DbSet<ConsolidationSnapshot> ConsolidationSnapshots => Set<ConsolidationSnapshot>();
     public DbSet<UserSiteRole> UserSiteRoles => Set<UserSiteRole>();
+    public DbSet<TelemetryDevice> TelemetryDevices => Set<TelemetryDevice>();
+    public DbSet<TelemetryReading> TelemetryReadings => Set<TelemetryReading>();
 
     IQueryable<Site> IAppReadDb.Sites => Sites;
     IQueryable<Submission> IAppReadDb.Submissions => Submissions;
     IQueryable<Answer> IAppReadDb.Answers => Answers;
     IQueryable<FormVersion> IAppReadDb.FormVersions => FormVersions;
+    IQueryable<UserSiteRole> IAppReadDb.UserSiteRoles => UserSiteRoles;
+    IQueryable<TelemetryDevice> IAppReadDb.TelemetryDevices => TelemetryDevices;
+    IQueryable<TelemetryReading> IAppReadDb.TelemetryReadings => TelemetryReadings;
 
     void IUnitOfWork.Add<T>(T entity) => Add(entity);
     void IUnitOfWork.Remove<T>(T entity) => Remove(entity);
@@ -43,6 +48,11 @@ public class AppDbContext(DbContextOptions<AppDbContext> options) : DbContext(op
 
         b.Entity<ReportingPeriod>().HasIndex(p => p.Year).IsUnique();
         b.Entity<Topic>().HasIndex(t => t.Code).IsUnique();
+
+        // Telemetry: Value double (REAL) agar agregasi bisa di SQL, berbeda dengan decimal di Answer
+        b.Entity<TelemetryDevice>().HasIndex(d => d.Code).IsUnique();
+        b.Entity<TelemetryDevice>().HasIndex(d => d.ApiKeyHash).IsUnique();
+        b.Entity<TelemetryReading>().HasIndex(r => new { r.DeviceId, r.Metric, r.RecordedAt });
 
         // Data referensi di-seed: 6 site
         b.Entity<Site>().HasData(

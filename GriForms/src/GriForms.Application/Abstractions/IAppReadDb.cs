@@ -9,4 +9,7 @@ public interface IAppReadDb
     IQueryable<Submission> Submissions { get; }
     IQueryable<Answer> Answers { get; }
     IQueryable<FormVersion> FormVersions { get; }
+    IQueryable<UserSiteRole> UserSiteRoles { get; }
+    IQueryable<TelemetryDevice> TelemetryDevices { get; }
+    IQueryable<TelemetryReading> TelemetryReadings { get; }
 }
