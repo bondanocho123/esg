@@ -1,0 +1,9 @@
+/*
+ * Dimuat PERTAMA di App.razor. Menetapkan urutan cascade layer sebelum Tailwind (site.css) dimuat,
+ * lalu memasukkan CSS MudBlazor ke layer "mud":
+ *   - MudBlazor menang atas preflight Tailwind (base)
+ *   - utilitas Tailwind menang atas MudBlazor
+ */
+@layer theme, base, mud, components, utilities;
+
+@import url("../_content/MudBlazor/MudBlazor.min.css") layer(mud);

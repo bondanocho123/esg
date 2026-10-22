@@ -27,4 +27,19 @@
     <ProjectReference Include="..\GriForms.Infrastructure\GriForms.Infrastructure.csproj" />
   </ItemGroup>
 
+  <!-- Tailwind: Styles/app.css -> wwwroot/css/site.css. Lewati dengan -p:SkipTailwind=true (mis. di mesin tanpa Node). -->
+  <ItemGroup>
+    <TailwindInput Include="Styles\**\*.css;Components\**\*.razor;Components\**\*.cs;package.json" />
+    <Content Remove="package.json;package-lock.json" />
+  </ItemGroup>
+
+  <Target Name="TailwindNpmInstall" BeforeTargets="TailwindBuild" Condition="'$(SkipTailwind)' != 'true' And !Exists('node_modules\.bin\tailwindcss.cmd') And !Exists('node_modules/.bin/tailwindcss')">
+    <Exec Command="npm install --no-audit --no-fund" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
+  <Target Name="TailwindBuild" BeforeTargets="BeforeBuild" Condition="'$(SkipTailwind)' != 'true'"
+          Inputs="@(TailwindInput)" Outputs="wwwroot\css\site.css">
+    <Exec Command="npm run css:build --silent" WorkingDirectory="$(MSBuildProjectDirectory)" />
+  </Target>
+
 </Project>

@@ -1,73 +1,43 @@
-﻿@implements IDisposable
+@implements IDisposable
 
 @inject NavigationManager NavigationManager
 
-<div class="top-row ps-3 navbar navbar-dark">
-    <div class="container-fluid">
-        <a class="navbar-brand" href="">GriForms.Web</a>
+<nav class="flex min-h-full flex-col gap-0.5 py-3">
+    <p class="mx-5 mt-0 mb-1 text-[10px] font-semibold tracking-wider text-forest-icon/70 uppercase">Menu</p>
+    <GfNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</GfNavLink>
+    <GfNavLink Href="counter" Icon="@Icons.Material.Filled.AddBox">Counter</GfNavLink>
+    <GfNavLink Href="weather" Icon="@Icons.Material.Filled.FormatListBulleted">Weather</GfNavLink>
+    <GfNavLink Href="auth" Icon="@Icons.Material.Filled.Lock">Auth Required</GfNavLink>
+    <GfNavLink Href="ui-kit" Icon="@Icons.Material.Filled.Palette">UI Kit</GfNavLink>
+
+    <p class="mx-5 mt-4 mb-1 text-[10px] font-semibold tracking-wider text-forest-icon/70 uppercase">Akun</p>
+    <AuthorizeView>
+        <Authorized>
+            <GfNavLink Href="Account/Manage" Icon="@Icons.Material.Filled.Person">@context.User.Identity?.Name</GfNavLink>
+            <form action="Account/Logout" method="post" class="contents">
+                <AntiforgeryToken />
+                <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                <button type="submit"
+                        class="mx-2 flex h-8 cursor-pointer items-center gap-2.5 rounded-md border-0 bg-transparent px-3 text-left text-xs font-medium text-on-forest/80 transition hover:bg-white/5 hover:text-on-forest">
+                    <GfIcon Icon="@Icons.Material.Filled.Logout" Size="GfSize.Sm" Class="text-forest-icon" />
+                    Logout
+                </button>
+            </form>
+        </Authorized>
+        <NotAuthorized>
+            <GfNavLink Href="Account/Register" Icon="@Icons.Material.Filled.PersonAdd">Register</GfNavLink>
+            <GfNavLink Href="Account/Login" Icon="@Icons.Material.Filled.Login">Login</GfNavLink>
+        </NotAuthorized>
+    </AuthorizeView>
+
+    <div class="mx-3 mt-auto rounded-lg bg-white/5 p-3 ring-1 ring-white/10">
+        <div class="flex items-center gap-2 text-xs font-semibold text-on-forest">
+            <GfIcon Icon="@Icons.Material.Filled.Forest" Size="GfSize.Sm" Class="text-sprout" />
+            Pelaporan GRI
+        </div>
+        <p class="m-0 mt-1 text-[11px] leading-snug text-on-forest/60">Data lingkungan, sosial &amp; tata kelola dalam satu tempat.</p>
     </div>
-</div>
-
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
-
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
-    <nav class="nav flex-column">
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <span class="bi bi-house-door-fill-nav-menu" aria-hidden="true"></span> Home
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="counter">
-                <span class="bi bi-plus-square-fill-nav-menu" aria-hidden="true"></span> Counter
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="weather">
-                <span class="bi bi-list-nested-nav-menu" aria-hidden="true"></span> Weather
-            </NavLink>
-        </div>
-
-        <div class="nav-item px-3">
-            <NavLink class="nav-link" href="auth">
-                <span class="bi bi-lock-nav-menu" aria-hidden="true"></span> Auth Required
-            </NavLink>
-        </div>
-
-        <AuthorizeView>
-            <Authorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Manage">
-                        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> @context.User.Identity?.Name
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <form action="Account/Logout" method="post">
-                        <AntiforgeryToken />
-                        <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                        <button type="submit" class="nav-link">
-                            <span class="bi bi-arrow-bar-left-nav-menu" aria-hidden="true"></span> Logout
-                        </button>
-                    </form>
-                </div>
-            </Authorized>
-            <NotAuthorized>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Register">
-                        <span class="bi bi-person-nav-menu" aria-hidden="true"></span> Register
-                    </NavLink>
-                </div>
-                <div class="nav-item px-3">
-                    <NavLink class="nav-link" href="Account/Login">
-                        <span class="bi bi-person-badge-nav-menu" aria-hidden="true"></span> Login
-                    </NavLink>
-                </div>
-            </NotAuthorized>
-        </AuthorizeView>
-    </nav>
-</div>
+</nav>
 
 @code {
     private string? currentUrl;
@@ -89,4 +59,3 @@
         NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
-

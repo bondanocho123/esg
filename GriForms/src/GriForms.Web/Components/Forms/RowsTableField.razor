@@ -20,7 +20,7 @@
                     <td>
                         @if (col.ValueType == "number")
                         {
-                            <MudNumericField T="decimal?" Variant="Variant.Text" HideSpinButtons="true"
+                            <MudNumericField T="decimal?" Variant="Variant.Text" Margin="Margin.Dense" HideSpinButtons="true"
                                              Disabled="ReadOnly"
                                              Error="@HasErrors"
                                              Value="@State.Get(key)?.Number"
@@ -28,7 +28,7 @@
                         }
                         else
                         {
-                            <MudTextField T="string" Variant="Variant.Text"
+                            <MudTextField T="string" Variant="Variant.Text" Margin="Margin.Dense"
                                           Disabled="ReadOnly"
                                           Error="@HasErrors"
                                           Value="@State.Get(key)?.Text"

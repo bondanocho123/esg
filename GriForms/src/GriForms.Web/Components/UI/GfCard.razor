@@ -1,0 +1,29 @@
+@* Kartu konten dengan garis gradien di atas sesuai varian *@
+<section class="@($"mb-4 overflow-hidden rounded-xl border border-line bg-surface shadow-sm shadow-primary/5 {Class}")">
+    <div class="@($"h-1 bg-linear-to-r {GfStyles.Gradient(Variant)}")" aria-hidden="true"></div>
+    @if (Title is not null || HeaderActions is not null)
+    {
+        <div class="flex items-center gap-2 px-4 pt-3 pb-2">
+            @if (Icon is not null)
+            {
+                <span class="@($"inline-flex size-7 shrink-0 items-center justify-center rounded-md {GfStyles.SoftTile(Variant)}")">
+                    <GfIcon Icon="@Icon" Size="GfSize.Sm" />
+                </span>
+            }
+            <h2 class="m-0 min-w-0 flex-1 truncate text-sm font-semibold text-ink">@Title</h2>
+            @HeaderActions
+        </div>
+    }
+    <div class="@(Title is null && HeaderActions is null ? "p-4" : "px-4 pb-4")">
+        @ChildContent
+    </div>
+</section>
+
+@code {
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public GfVariant Variant { get; set; } = GfVariant.Primary;
+    [Parameter] public RenderFragment? HeaderActions { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

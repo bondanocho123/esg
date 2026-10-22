@@ -1,0 +1,16 @@
+@* Label form; Required menampilkan tanda * *@
+<label for="@For" class="@($"mb-1 inline-flex items-center gap-0.5 text-xs font-medium {(Variant is { } v ? GfStyles.Text(v) : "text-ink")} {Class}")">
+    @ChildContent
+    @if (Required)
+    {
+        <span class="text-danger" aria-hidden="true">*</span>
+    }
+</label>
+
+@code {
+    [Parameter] public string? For { get; set; }
+    [Parameter] public bool Required { get; set; }
+    [Parameter] public GfVariant? Variant { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

@@ -1,28 +1,55 @@
 ﻿@inherits LayoutComponentBase
 
-<MudThemeProvider />
+<MudThemeProvider Theme="GriFormsTheme.Default" />
 <MudPopoverProvider />
 <MudDialogProvider />
 <MudSnackbarProvider />
 
-<div class="page">
-    <div class="sidebar">
-        <NavMenu />
+@* Toggle sidebar murni CSS (checkbox + peer), jadi tetap berfungsi di halaman Account yang dirender statis.
+   Mobile: dicentang = sidebar tampil. Desktop (lg): dicentang = sidebar disembunyikan. *@
+<input id="gf-nav-toggle" type="checkbox" class="peer sr-only" aria-label="Buka/tutup menu" />
+
+<header class="fixed inset-x-0 top-0 z-40 flex h-12 items-center gap-2 bg-linear-to-r from-forest-deep via-primary-dark to-primary px-3 text-white shadow-md shadow-forest/25">
+    <label for="gf-nav-toggle"
+           title="Buka/tutup menu"
+           class="inline-flex size-8 cursor-pointer items-center justify-center rounded-md text-white/90 transition hover:bg-white/10 [#gf-nav-toggle:focus-visible~header_&]:ring-2 [#gf-nav-toggle:focus-visible~header_&]:ring-secondary">
+        <GfIcon Icon="@Icons.Material.Filled.Menu" Size="GfSize.Sm" />
+    </label>
+
+    <a href="" class="flex items-center gap-2 text-sm font-semibold tracking-wide text-white no-underline hover:text-white hover:no-underline">
+        <span class="inline-flex size-7 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
+            <GfIcon Icon="@Icons.Material.Filled.EnergySavingsLeaf" Size="GfSize.Sm" Class="text-sprout" />
+        </span>
+        GriForms
+        <span class="hidden rounded-full bg-sprout/20 px-1.5 py-0.5 text-[10px] leading-none font-semibold text-sprout sm:inline">ESG</span>
+    </a>
+
+    <div class="ml-auto flex items-center gap-1">
+        <a href="https://learn.microsoft.com/aspnet/core/" target="_blank"
+           class="rounded-md px-2.5 py-1 text-xs font-medium text-white/85 no-underline transition hover:bg-white/10 hover:text-white hover:no-underline">
+            About
+        </a>
     </div>
+</header>
 
-    <main>
-        <div class="top-row px-4">
-            <a href="https://learn.microsoft.com/aspnet/core/" target="_blank">About</a>
-        </div>
+<aside class="fixed top-12 bottom-0 left-0 z-30 w-60 overflow-y-auto bg-forest bg-[radial-gradient(130%_55%_at_0%_100%,rgba(34,197,94,0.22),transparent_70%)] transition-transform duration-200 max-lg:-translate-x-full max-lg:peer-checked:translate-x-0 lg:peer-checked:-translate-x-full"
+       onclick="if (event.target.closest('a')) document.getElementById('gf-nav-toggle').checked = false">
+    <NavMenu />
+</aside>
 
-        <article class="content px-4">
-            @Body
-        </article>
-    </main>
-</div>
+@* Latar gelap saat sidebar terbuka di mobile; klik untuk menutup *@
+<label for="gf-nav-toggle" aria-hidden="true"
+       class="fixed inset-0 top-12 z-20 hidden bg-forest/50 backdrop-blur-[1px] max-lg:peer-checked:block"></label>
 
-<div id="blazor-error-ui" data-nosnippet>
+<main class="min-h-screen bg-[radial-gradient(60rem_18rem_at_100%_0%,rgba(56,189,248,0.10),transparent),radial-gradient(40rem_16rem_at_0%_0%,rgba(34,197,94,0.10),transparent)] pt-12 transition-[padding] duration-200 lg:pl-60 lg:peer-checked:pl-0">
+    <div class="mx-auto max-w-6xl px-4 py-5 sm:px-6">
+        @Body
+    </div>
+</main>
+
+<div id="blazor-error-ui" data-nosnippet
+     class="fixed inset-x-0 bottom-0 z-50 hidden bg-secondary-light px-5 py-2.5 text-xs text-on-secondary shadow-[0_-1px_2px_rgba(0,0,0,0.2)]">
     An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
+    <a href="." class="reload font-semibold">Reload</a>
+    <span class="dismiss absolute top-2 right-3 cursor-pointer">🗙</span>
 </div>

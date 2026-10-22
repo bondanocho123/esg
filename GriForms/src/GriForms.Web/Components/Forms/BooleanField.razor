@@ -10,8 +10,8 @@
                Value="@Current?.Text"
                ValueChanged="OnChanged"
                Disabled="@(ReadOnly || NotApplicable)">
-    <MudRadio T="string" Value="@("true")">Ya</MudRadio>
-    <MudRadio T="string" Value="@("false")">Tidak</MudRadio>
+    <MudRadio T="string" Size="Size.Small" Value="@("true")">Ya</MudRadio>
+    <MudRadio T="string" Size="Size.Small" Value="@("false")">Tidak</MudRadio>
 </MudRadioGroup>
 <FieldErrors Errors="Errors" />
 <NotApplicableToggle QuestionKey="@Question.Key" State="State" ReadOnly="ReadOnly" />

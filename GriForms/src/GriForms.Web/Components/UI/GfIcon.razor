@@ -1,0 +1,19 @@
+@* Ikon SVG. Icon = string path dari MudBlazor.Icons (mis. Icons.Material.Filled.Home) *@
+<svg viewBox="0 0 24 24"
+     class="@($"inline-block shrink-0 fill-current {GfStyles.IconSize(Size)} {(Variant is { } v ? GfStyles.Text(v) : "")} {Class}")"
+     aria-hidden="@(Title is null ? "true" : null)"
+     role="@(Title is null ? null : "img")">
+    @if (Title is not null)
+    {
+        <title>@Title</title>
+    }
+    @((MarkupString)Icon)
+</svg>
+
+@code {
+    [Parameter, EditorRequired] public string Icon { get; set; } = "";
+    [Parameter] public GfVariant? Variant { get; set; }
+    [Parameter] public GfSize Size { get; set; } = GfSize.Md;
+    [Parameter] public string? Title { get; set; }
+    [Parameter] public string? Class { get; set; }
+}
