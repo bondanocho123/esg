@@ -168,9 +168,9 @@ src/
   GriForms.Application/       use case, DTO, interface, validasi
     Forms/                    model definisi form, IFormDefinitionService
     Submissions/              simpan draft, ajukan, review, setujui
-    Validation/               mesin validasi dari definisi
+    Validation/               mesin validasi dan satu kelas per aturan (IValidationRule)
     Consolidation/            query konsolidasi lintas site
-    Abstractions/             IAppDbContext, IExcelService, IClock, ICurrentUser
+    Abstractions/             IAppReadDb, IUnitOfWork, IClock, ICurrentUser, antarmuka layanan kecil
   GriForms.Infrastructure/    implementasi teknis
     Persistence/              AppDbContext, konfigurasi EF, migrations, seed
     Excel/                    import dan export dengan ClosedXML
@@ -192,6 +192,91 @@ tests/
 | Web | Halaman, komponen, binding, navigasi | Memanggil `DbContext` atau menulis query langsung |
 
 Untuk mendaftarkan layanan, buat satu extension method per layer (`AddApplication()` dan `AddInfrastructure(config)`) dan panggil keduanya di `Program.cs`.
+
+### Prinsip SOLID sebagai aturan desain
+
+Seluruh contoh kode di panduan ini mengikuti SOLID. Tabel merangkum aturan yang dipakai di proyek ini dan di bab mana aturan itu terlihat.
+
+| Prinsip | Aturan di proyek ini | Terlihat di |
+| --- | --- | --- |
+| Single Responsibility | Satu kelas punya satu alasan untuk berubah. Satu aturan validasi satu kelas, simpan otomatis dipisah dari halaman, audit dipisah dari penyimpanan | Bab 8 (AutosaveCoordinator), bab 9 (IValidationRule), bab 10 (AuditInterceptor) |
+| Open/Closed | Perilaku baru ditambah lewat kelas baru dan satu registrasi DI, bukan dengan mengubah kode lama atau menambah cabang switch | Bab 8 (field baru), bab 9 (aturan dan kalkulasi baru), bab 12 (penulis kartu baru) |
+| Liskov Substitution | Semua turunan menghormati kontrak induknya. Setiap field menghormati ReadOnly, Errors, dan State; setiap aturan validasi hanya mengembalikan issue dan tidak melempar untuk input valid | Bab 8 (FieldBase), bab 9 |
+| Interface Segregation | Antarmuka kecil dan fokus. Pembaca data dipisah dari penulis, importer dipisah dari exporter, query dipisah dari workflow | Bab 4 (kontrak Application), bab 12, bab 13 |
+| Dependency Inversion | Domain dan Application hanya bergantung pada abstraksi. Infrastructure mengimplementasikannya, dan perakitan terjadi di satu tempat, `Program.cs` | Bab 3 sampai 5, bab 7, bab 11 |
+
+### Kontrak di layer Application
+
+Antarmuka berikut hidup di `GriForms.Application/Abstractions`. Komponen Blazor dan service hanya meminta antarmuka yang benar-benar mereka pakai lewat DI, tidak pernah `AppDbContext` atau kelas konkret Infrastructure.
+
+```csharp
+// Akses data: dipisah antara membaca dan menulis (ISP)
+public interface IAppReadDb
+{
+    IQueryable<Site> Sites { get; }
+    IQueryable<Submission> Submissions { get; }
+    IQueryable<Answer> Answers { get; }
+    IQueryable<FormVersion> FormVersions { get; }
+}
+
+public interface IUnitOfWork
+{
+    void Add<T>(T entity) where T : class;
+    Task<int> SaveChangesAsync(CancellationToken ct);
+}
+
+// AppDbContext mengimplementasikan keduanya di Infrastructure
+// public class AppDbContext : DbContext, IAppReadDb, IUnitOfWork { ... }
+
+// Use case: satu antarmuka per alasan berubah
+public interface IFormVersionResolver
+{
+    Task<FormVersion> ResolveAsync(int topicId, int year, CancellationToken ct);
+}
+
+public interface ISubmissionQueries
+{
+    Task<SubmissionView?> GetAsync(int submissionId, CancellationToken ct);
+}
+
+public interface IAnswerWriter
+{
+    Task SaveCellsAsync(int submissionId, IEnumerable<CellChange> changes, CancellationToken ct);
+}
+
+public interface ISubmissionWorkflow
+{
+    Task TransitionAsync(int submissionId, SubmissionStatus to, string? comment, CancellationToken ct);
+}
+
+public interface IConsolidationQuery
+{
+    Task<ConsolidationResult> BuildAsync(int topicId, int year, CancellationToken ct);
+}
+
+// Excel: importer dan exporter tidak dipaksa saling mengenal
+public interface IExcelImporter
+{
+    IEnumerable<LegacyRow> Read(string path);
+}
+
+public interface IConsolidationExporter
+{
+    Stream Export(IEnumerable<ICard> cards);
+}
+
+// Pendukung
+public interface IClock { DateTime UtcNow { get; } }
+public interface ICurrentUser { string? UserId { get; } }
+```
+
+### Tanda pelanggaran yang dicek saat code review
+
+- `switch` atau rantai `if` pada `InputType` di lebih dari satu tempat: pelanggaran Open/Closed, pindahkan ke registry atau strategi.
+- Komponen Blazor dengan `@inject AppDbContext` atau memanggil `new` pada layanan: pelanggaran Dependency Inversion.
+- Kelas yang menyebut dua hal berbeda dalam namanya (mis. `ValidatorAndSaver`): pelanggaran Single Responsibility, pecah.
+- Turunan `FieldBase` yang mengabaikan `ReadOnly` atau melempar saat `Errors` tidak kosong: pelanggaran Liskov. Sediakan satu kelas tes kontrak yang dijalankan untuk setiap field.
+- Antarmuka dengan lebih dari sekitar lima member atau yang sebagian membernya tidak dipakai pemanggil: pelanggaran Interface Segregation, pecah.
 
 ## 5. Model domain dan skema database
 
@@ -462,6 +547,7 @@ Setiap sel jawaban punya kunci `QuestionKey|PeriodKey` (bagian periode kosong un
 
 ```csharp
 public record AnswerValue(string? Text, decimal? Number, ValueState State = ValueState.Filled);
+public record CellChange(string CellKey, AnswerValue? Value);
 
 public class FormState
 {
@@ -484,11 +570,13 @@ public class FormState
         Changed?.Invoke();
     }
 
-    public IReadOnlyCollection<string> TakeDirty()
+    public IReadOnlyList<CellChange> TakeDirtyChanges()
     {
-        var copy = _dirty.ToArray();
+        var changes = _dirty
+            .Select(k => new CellChange(k, _cells.GetValueOrDefault(k)))
+            .ToList();
         _dirty.Clear();
-        return copy;
+        return changes;
     }
 }
 ```
@@ -496,26 +584,65 @@ public class FormState
 ### Registry tipe ke komponen
 
 ```csharp
-public static class FieldRegistry
+public interface IFieldDescriptor
 {
-    public static readonly IReadOnlyDictionary<InputType, Type> Map =
-        new Dictionary<InputType, Type>
-        {
-            [InputType.Text]         = typeof(TextField),
-            [InputType.Number]       = typeof(NumberField),
-            [InputType.Select]       = typeof(SelectField),
-            [InputType.Boolean]      = typeof(BooleanField),
-            [InputType.MonthlyTable] = typeof(MonthlyTableField),
-            [InputType.RowsTable]    = typeof(RowsTableField),
-        };
+    InputType Type { get; }
+    Type ComponentType { get; }
+}
+
+public sealed record FieldDescriptor<TField>(InputType Type) : IFieldDescriptor
+    where TField : FieldBase
+{
+    public Type ComponentType => typeof(TField);
+}
+
+public interface IFieldRegistry
+{
+    Type Resolve(InputType type);
+}
+
+public sealed class FieldRegistry(IEnumerable<IFieldDescriptor> descriptors) : IFieldRegistry
+{
+    private readonly IReadOnlyDictionary<InputType, Type> _map =
+        descriptors.ToDictionary(d => d.Type, d => d.ComponentType);
+
+    public Type Resolve(InputType type) =>
+        _map.TryGetValue(type, out var component)
+            ? component
+            : throw new NotSupportedException($"Tipe input {type} belum punya komponen.");
+}
+
+public static class FieldServiceExtensions
+{
+    public static IServiceCollection AddField<TField>(this IServiceCollection services, InputType type)
+        where TField : FieldBase
+        => services.AddSingleton<IFieldDescriptor>(new FieldDescriptor<TField>(type));
 }
 ```
+
+Registry sekarang tertutup untuk perubahan dan terbuka untuk perluasan (Open/Closed): tipe baru ditambah lewat satu baris registrasi di `Program.cs`, tanpa menyentuh registry maupun `DynamicForm`.
+
+```csharp
+// Program.cs
+builder.Services.AddSingleton<IFieldRegistry, FieldRegistry>();
+builder.Services
+    .AddField<TextField>(InputType.Text)
+    .AddField<NumberField>(InputType.Number)
+    .AddField<SelectField>(InputType.Select)
+    .AddField<BooleanField>(InputType.Boolean)
+    .AddField<MonthlyTableField>(InputType.MonthlyTable)
+    .AddField<RowsTableField>(InputType.RowsTable);
+```
+
+Tambahkan satu tes yang memastikan setiap nilai `InputType` punya descriptor, supaya tipe yang lupa didaftarkan gagal di tes, bukan di produksi.
 
 ### Komponen dasar dan contoh satu field
 
 Semua field mewarisi satu kelas dasar sehingga `DynamicComponent` bisa memberi parameter yang seragam.
 
 ```csharp
+// Kontrak untuk semua turunan (Liskov): hormati ReadOnly, tampilkan Errors,
+// baca dan tulis hanya lewat State, dan jangan melempar untuk nilai kosong.
 public abstract class FieldBase : ComponentBase
 {
     [Parameter, EditorRequired] public QuestionDef Question { get; set; } = null!;
@@ -610,6 +737,7 @@ Fitur yang layak ditambahkan setelah versi dasar berjalan: tempel (paste) blok a
 
 ```razor
 @* DynamicForm.razor *@
+@inject IFieldRegistry Registry
 @foreach (var d in Definition.Disclosures)
 {
     <MudPaper Class="pa-4 mb-4" @key="d.No">
@@ -618,7 +746,7 @@ Fitur yang layak ditambahkan setelah versi dasar berjalan: tempel (paste) blok a
         @foreach (var q in d.Questions.Where(VisibleRules.IsVisible(State)))
         {
             <DynamicComponent @key="q.Key"
-                              Type="FieldRegistry.Map[q.Type]"
+                              Type="Registry.Resolve(q.Type)"
                               Parameters="ParametersFor(q)" />
         }
     </MudPaper>
@@ -642,29 +770,77 @@ Fitur yang layak ditambahkan setelah versi dasar berjalan: tempel (paste) blok a
 
 ### Simpan otomatis
 
-Halaman yang memuat `DynamicForm` berlangganan ke `State.Changed` dan menyimpan sel yang berubah setelah jeda sekitar satu detik tanpa perubahan baru. Ini pengaman utama untuk koneksi tidak stabil di site (bab 2).
+Logika simpan otomatis dipisah dari halaman ke kelas `AutosaveCoordinator` (Single Responsibility). Halaman hanya membuat instance-nya dan menampilkan `SavedAt`. Kelas ini hanya bergantung pada `IAnswerWriter`, bukan pada service yang lebih besar (Interface Segregation dan Dependency Inversion), sehingga bisa diuji dengan penulis palsu. Ini pengaman utama untuk koneksi tidak stabil di site (bab 2).
 
 ```csharp
-private CancellationTokenSource? _debounce;
-
-private void OnStateChanged()
+public sealed class AutosaveCoordinator : IDisposable
 {
-    _debounce?.Cancel();
-    _debounce = new CancellationTokenSource();
-    var token = _debounce.Token;
+    private readonly FormState _state;
+    private readonly IAnswerWriter _writer;
+    private readonly int _submissionId;
+    private readonly TimeSpan _delay;
+    private CancellationTokenSource? _debounce;
 
-    _ = InvokeAsync(async () =>
+    public AutosaveCoordinator(FormState state, IAnswerWriter writer, int submissionId, TimeSpan? delay = null)
+    {
+        _state = state;
+        _writer = writer;
+        _submissionId = submissionId;
+        _delay = delay ?? TimeSpan.FromSeconds(1);
+        _state.Changed += OnChanged;
+    }
+
+    public DateTime? SavedAt { get; private set; }
+    public event Action? Saved;
+    public event Action<Exception>? Failed;
+
+    private void OnChanged()
+    {
+        _debounce?.Cancel();
+        _debounce = new CancellationTokenSource();
+        _ = SaveLaterAsync(_debounce.Token);
+    }
+
+    private async Task SaveLaterAsync(CancellationToken delayToken)
     {
         try
         {
-            await Task.Delay(TimeSpan.FromSeconds(1), token);
-            var cells = State.TakeDirty();
-            await Submissions.SaveCellsAsync(SubmissionId, cells.Select(k => (k, State.GetByCellKey(k))), token);
+            await Task.Delay(_delay, delayToken);          // hanya jeda yang bisa dibatalkan
+            var changes = _state.TakeDirtyChanges();
+            if (changes.Count == 0) return;
+
+            await _writer.SaveCellsAsync(_submissionId, changes, CancellationToken.None);
             SavedAt = DateTime.Now;
-            StateHasChanged();
+            Saved?.Invoke();
         }
         catch (OperationCanceledException) { /* perubahan baru menggantikan */ }
-    });
+        catch (Exception ex) { Failed?.Invoke(ex); }
+    }
+
+    public void Dispose()
+    {
+        _state.Changed -= OnChanged;
+        _debounce?.Cancel();
+    }
+}
+```
+
+Pemakaian di halaman form:
+
+```razor
+@implements IDisposable
+@inject IAnswerWriter Writer
+
+@code {
+    private AutosaveCoordinator _autosave = null!;
+
+    protected override void OnInitialized()
+    {
+        _autosave = new AutosaveCoordinator(State, Writer, SubmissionId);
+        _autosave.Saved += () => InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => _autosave.Dispose();
 }
 ```
 

@@ -32,15 +32,19 @@ public class Submission
 
     public void Transition(SubmissionStatus to, RoleName actorRole, string? comment)
     {
+        // Period bisa belum dimuat (null) pada entity yang diambil tanpa Include; pemeriksaan penuh ada di use case.
+        if (Period is { Status: PeriodStatus.Closed })
+            throw new InvalidOperationException("Periode pelaporan sudah ditutup, status submission tidak bisa diubah.");
+
         if (!Allowed.TryGetValue((Status, to), out var required) || required != actorRole)
             throw new InvalidOperationException($"Transisi {Status} ke {to} tidak diizinkan untuk peran {actorRole}.");
 
-        if (to is SubmissionStatus.Rejected or SubmissionStatus.Draft && string.IsNullOrWhiteSpace(comment))
+        if ((to is SubmissionStatus.Rejected or SubmissionStatus.Draft) && string.IsNullOrWhiteSpace(comment))
             throw new InvalidOperationException("Komentar atau alasan wajib saat menolak atau membuka kembali.");
 
         Status = to;
     }
 
     public bool IsEditableBy(RoleName role) =>
-        role == RoleName.Contributor && Status is SubmissionStatus.Draft or SubmissionStatus.Rejected;
+        role == RoleName.Contributor && (Status is SubmissionStatus.Draft or SubmissionStatus.Rejected);
 }
