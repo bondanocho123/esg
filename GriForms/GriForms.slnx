@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GriForms.Application/GriForms.Application.csproj" />
+    <Project Path="src/GriForms.Domain/GriForms.Domain.csproj" />
+    <Project Path="src/GriForms.Infrastructure/GriForms.Infrastructure.csproj" />
+    <Project Path="src/GriForms.Web/GriForms.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GriForms.Tests/GriForms.Tests.csproj" />
+  </Folder>
+</Solution>
