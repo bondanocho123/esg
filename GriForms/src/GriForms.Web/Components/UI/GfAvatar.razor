@@ -1,0 +1,18 @@
+@* Avatar bulat: foto bila Src ada, selain itu huruf depan Name *@
+@if (string.IsNullOrEmpty(Src))
+{
+    <span class="@($"inline-flex size-7 shrink-0 items-center justify-center rounded-full bg-sprout text-xs font-bold text-forest-deep uppercase select-none {Class}")"
+          aria-hidden="true">@Initial</span>
+}
+else
+{
+    <img src="@Src" alt="" class="@($"size-7 shrink-0 rounded-full object-cover {Class}")" />
+}
+
+@code {
+    [Parameter] public string? Name { get; set; }
+    [Parameter] public string? Src { get; set; }
+    [Parameter] public string? Class { get; set; }
+
+    private string Initial => string.IsNullOrWhiteSpace(Name) ? "?" : Name.Trim()[..1];
+}

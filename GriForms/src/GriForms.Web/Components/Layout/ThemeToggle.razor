@@ -1,0 +1,17 @@
+@* Pilihan tema terang / gelap / sistem. Murni JS (wwwroot/js/theme.js) supaya juga berfungsi
+   di halaman Account yang dirender statis. Tombol aktif ditandai lewat html[data-theme-pref]. *@
+<div role="group" aria-label="Tema tampilan"
+     class="flex items-center gap-0.5 rounded-full bg-white/10 p-0.5 ring-1 ring-white/15">
+    <button type="button" onclick="gfTheme.set('light')" title="Terang" aria-label="Tema terang"
+            class="inline-flex size-7 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-white/70 transition hover:bg-white/10 hover:text-white [html[data-theme-pref=light]_&]:bg-white/20 [html[data-theme-pref=light]_&]:text-white">
+        <GfIcon Icon="@Icons.Material.Filled.LightMode" Size="GfSize.Sm" />
+    </button>
+    <button type="button" onclick="gfTheme.set('dark')" title="Gelap" aria-label="Tema gelap"
+            class="inline-flex size-7 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-white/70 transition hover:bg-white/10 hover:text-white [html[data-theme-pref=dark]_&]:bg-white/20 [html[data-theme-pref=dark]_&]:text-white">
+        <GfIcon Icon="@Icons.Material.Filled.DarkMode" Size="GfSize.Sm" />
+    </button>
+    <button type="button" onclick="gfTheme.set('system')" title="Ikuti sistem" aria-label="Tema mengikuti sistem"
+            class="inline-flex size-7 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-white/70 transition hover:bg-white/10 hover:text-white [html[data-theme-pref=system]_&]:bg-white/20 [html[data-theme-pref=system]_&]:text-white">
+        <GfIcon Icon="@Icons.Material.Filled.Computer" Size="GfSize.Sm" />
+    </button>
+</div>

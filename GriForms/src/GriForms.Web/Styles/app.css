@@ -9,6 +9,9 @@
 @import "tailwindcss" source(none);
 @source "../Components";
 
+/* Mode gelap mengikuti kelas html.dark (dipasang wwwroot/js/theme.js), bukan media query */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* Warna mengacu ke variabel MudThemeProvider (sumber: Theme/GriFormsTheme.cs). Hex = fallback. */
 @theme inline {
     --font-sans: Inter, Roboto, ui-sans-serif, system-ui, sans-serif;
@@ -179,7 +182,7 @@
     }
 
     .alert-warning {
-        @apply border-warning/40 bg-warning/10 text-tertiary-dark;
+        @apply border-warning/40 bg-warning/10 text-tertiary-dark dark:text-warning;
     }
 
     .alert-danger {
