@@ -1,0 +1,9 @@
+@* Menampilkan pesan validasi dengan cara yang sama untuk semua field *@
+@foreach (var message in Errors)
+{
+    <MudText Typo="Typo.caption" Color="Color.Error" Class="field-error">@message</MudText>
+}
+
+@code {
+    [Parameter] public IReadOnlyList<string> Errors { get; set; } = Array.Empty<string>();
+}

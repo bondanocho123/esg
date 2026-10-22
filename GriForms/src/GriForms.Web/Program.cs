@@ -1,9 +1,14 @@
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using GriForms.Application;
+using GriForms.Application.Abstractions;
+using GriForms.Infrastructure;
 using GriForms.Web.Components;
 using GriForms.Web.Components.Account;
+using GriForms.Web.Components.Forms;
 using GriForms.Web.Data;
+using GriForms.Web.Services;
 using MudBlazor.Services;
 using Serilog;
 
@@ -16,7 +21,10 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddMudServices();
 
-// Bab 4 dan seterusnya: AddApplication(), AddInfrastructure(builder.Configuration)
+builder.Services.AddApplication();
+builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddFormFields();
+builder.Services.AddScoped<ICurrentUser, AuthStateCurrentUser>();
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityRedirectManager>();

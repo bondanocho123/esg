@@ -1,0 +1,42 @@
+@inherits FieldBase
+@inject IFormContext Ctx
+
+<MudText Typo="Typo.subtitle1">@Question.Label (@Question.Unit)</MudText>
+<MudSimpleTable Dense="true">
+    <thead>
+        <tr>
+            <th>Baris</th>
+            @for (var m = 1; m <= 12; m++) { <th>@MonthLabel(m)</th> }
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var row in Rows)
+        {
+            <tr @key="row.Key">
+                <td>@row.Label</td>
+                @for (var m = 1; m <= 12; m++)
+                {
+                    var month = m;
+                    <td>
+                        <MudNumericField T="decimal?" Variant="Variant.Text" HideSpinButtons="true"
+                                         Disabled="ReadOnly"
+                                         Error="@HasErrors"
+                                         Value="@State.Get(RowKey(row.Key), PeriodKey(month))?.Number"
+                                         ValueChanged="v => Set(row.Key, month, v)" />
+                    </td>
+                }
+            </tr>
+        }
+    </tbody>
+</MudSimpleTable>
+<FieldErrors Errors="Errors" />
+
+@code {
+    private IEnumerable<RowDef> Rows => Question.Rows ?? new List<RowDef>();
+    private string RowKey(string rowKey) => $"{Question.Key}/{rowKey}";
+    private string PeriodKey(int m) => $"{Ctx.Year}-{m:00}";
+    private static string MonthLabel(int m) => new DateTime(2000, m, 1).ToString("MMM");
+
+    private void Set(string rowKey, int month, decimal? v) =>
+        State.Set(RowKey(rowKey), PeriodKey(month), v is null ? null : new AnswerValue(null, v));
+}
