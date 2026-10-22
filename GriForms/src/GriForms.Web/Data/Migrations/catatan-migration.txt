@@ -1,0 +1,47 @@
+Error itu muncul karena solution ini punya **dua DbContext**:
+
+| Context | Lokasi | Isi |
+|---|---|---|
+| `ApplicationDbContext` | `GriForms.Web/Data` | Tabel Identity (login/user). Migration-nya sudah ada: `CreateIdentitySchema`. |
+| `AppDbContext` | `GriForms.Infrastructure/Persistence` | Tabel domain: Site, Submission, Answer, FormVersion, dst. Belum punya migration. |
+
+Dari nama `Initiate`, saya perkirakan Anda ingin membuat migration untuk tabel domain, yaitu `AppDbContext`. Kedua context memakai file `Data/app.db` yang sama (`AppConnection` jatuh kembali ke `DefaultConnection`).
+
+**1. Buat migration untuk `AppDbContext`**
+
+Migration disimpan di project Infrastructure, bersama context-nya. `--startup-project` tetap Web karena di situ konfigurasi dan paket `EntityFrameworkCore.Design` berada:
+
+```powershell
+dotnet ef migrations add Initiate --context AppDbContext --project src/GriForms.Infrastructure --startup-project src/GriForms.Web --output-dir Persistence/Migrations
+```
+
+**2. Terapkan ke database**
+
+```powershell
+dotnet ef database update --context AppDbContext --project src/GriForms.Infrastructure --startup-project src/GriForms.Web
+```
+
+Tabel Identity ikut dibuat kalau Anda juga menjalankan:
+
+```powershell
+dotnet ef database update --context ApplicationDbContext --project src/GriForms.Web
+```
+
+Mulai sekarang, **setiap perintah `dotnet ef` wajib memakai `--context`**. Tanpa itu Anda akan terus kena error yang sama.
+
+**Peringatan: tabel history bersama**
+
+Kedua context menyimpan riwayat migration di tabel `__EFMigrationsHistory` yang sama. Biasanya ini masih jalan karena tabel yang dibuat berbeda, tapi bisa membingungkan. Cara yang lebih aman adalah memisahkan tabel history untuk domain di `DependencyInjection.cs`:
+
+```csharp
+options.UseSqlite(connectionString, o => o.MigrationsHistoryTable("__AppMigrationsHistory"));
+```
+
+Bagian ini ada di `UseProvider`. Ubah itu **sebelum** membuat migration pertama. Jika Anda mau, saya yang ubah.
+
+**Catatan**
+
+- Data seed 6 site (`HasData`) akan masuk ke migration `Initiate` secara otomatis.
+- `RowVersionInterceptor` dan `AuditInterceptor` tidak memengaruhi pembuatan migration, hanya saat runtime.
+
+Kalau perintah di atas gagal, kirim outputnya dan saya periksa.
