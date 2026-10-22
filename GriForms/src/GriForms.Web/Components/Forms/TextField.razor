@@ -1,0 +1,20 @@
+@inherits FieldBase
+
+<MudTextField T="string"
+              Label="@Question.Label"
+              HelperText="@Question.HelpText"
+              Lines="3"
+              Value="@Current?.Text"
+              ValueChanged="OnChanged"
+              Disabled="@(ReadOnly || NotApplicable)"
+              Error="@HasErrors" />
+<FieldErrors Errors="Errors" />
+<NotApplicableToggle QuestionKey="@Question.Key" State="State" ReadOnly="ReadOnly" />
+
+@code {
+    private AnswerValue? Current => State.Get(Question.Key);
+    private bool NotApplicable => Current?.State == ValueState.NotApplicable;
+
+    private void OnChanged(string? v) =>
+        State.Set(Question.Key, null, string.IsNullOrEmpty(v) ? null : new AnswerValue(v, null));
+}

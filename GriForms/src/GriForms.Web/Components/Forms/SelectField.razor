@@ -1,0 +1,26 @@
+@inherits FieldBase
+
+<MudSelect T="string"
+           Label="@Question.Label"
+           HelperText="@Question.HelpText"
+           Value="@Current?.Text"
+           ValueChanged="OnChanged"
+           Disabled="@(ReadOnly || NotApplicable)"
+           Error="@HasErrors"
+           Clearable="true">
+    @foreach (var option in Options)
+    {
+        <MudSelectItem T="string" Value="@option.Value">@option.Label</MudSelectItem>
+    }
+</MudSelect>
+<FieldErrors Errors="Errors" />
+<NotApplicableToggle QuestionKey="@Question.Key" State="State" ReadOnly="ReadOnly" />
+
+@code {
+    private IEnumerable<OptionDef> Options => Question.Options ?? new List<OptionDef>();
+    private AnswerValue? Current => State.Get(Question.Key);
+    private bool NotApplicable => Current?.State == ValueState.NotApplicable;
+
+    private void OnChanged(string? v) =>
+        State.Set(Question.Key, null, string.IsNullOrEmpty(v) ? null : new AnswerValue(v, null));
+}

@@ -1,0 +1,22 @@
+@inherits FieldBase
+
+<MudNumericField T="decimal?"
+                 Label="@Question.Label"
+                 HelperText="@Question.HelpText"
+                 Value="@Current?.Number"
+                 ValueChanged="OnChanged"
+                 Disabled="@(ReadOnly || NotApplicable)"
+                 Error="@HasErrors"
+                 HideSpinButtons="true"
+                 Adornment="Adornment.End"
+                 AdornmentText="@Question.Unit" />
+<FieldErrors Errors="Errors" />
+<NotApplicableToggle QuestionKey="@Question.Key" State="State" ReadOnly="ReadOnly" />
+
+@code {
+    private AnswerValue? Current => State.Get(Question.Key);
+    private bool NotApplicable => Current?.State == ValueState.NotApplicable;
+
+    private void OnChanged(decimal? v) =>
+        State.Set(Question.Key, null, v is null ? null : new AnswerValue(null, v));
+}

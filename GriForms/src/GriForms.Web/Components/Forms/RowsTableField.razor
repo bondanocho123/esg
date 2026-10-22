@@ -1,0 +1,55 @@
+@inherits FieldBase
+
+@* Kunci sel memuat kunci baris dan kolom, mis. "306-3-A/limbah-b3/jumlah" *@
+<MudText Typo="Typo.subtitle1">@Question.Label</MudText>
+<MudSimpleTable Dense="true">
+    <thead>
+        <tr>
+            <th>Baris</th>
+            @foreach (var col in Columns) { <th @key="col.Key">@col.Label</th> }
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var row in Rows)
+        {
+            <tr @key="row.Key">
+                <td>@row.Label</td>
+                @foreach (var col in Columns)
+                {
+                    var key = CellKey(row.Key, col.Key);
+                    <td>
+                        @if (col.ValueType == "number")
+                        {
+                            <MudNumericField T="decimal?" Variant="Variant.Text" HideSpinButtons="true"
+                                             Disabled="ReadOnly"
+                                             Error="@HasErrors"
+                                             Value="@State.Get(key)?.Number"
+                                             ValueChanged="v => SetNumber(key, v)" />
+                        }
+                        else
+                        {
+                            <MudTextField T="string" Variant="Variant.Text"
+                                          Disabled="ReadOnly"
+                                          Error="@HasErrors"
+                                          Value="@State.Get(key)?.Text"
+                                          ValueChanged="v => SetText(key, v)" />
+                        }
+                    </td>
+                }
+            </tr>
+        }
+    </tbody>
+</MudSimpleTable>
+<FieldErrors Errors="Errors" />
+
+@code {
+    private IEnumerable<RowDef> Rows => Question.Rows ?? new List<RowDef>();
+    private IEnumerable<ColumnDef> Columns => Question.Columns ?? new List<ColumnDef>();
+    private string CellKey(string rowKey, string colKey) => $"{Question.Key}/{rowKey}/{colKey}";
+
+    private void SetNumber(string key, decimal? v) =>
+        State.Set(key, null, v is null ? null : new AnswerValue(null, v));
+
+    private void SetText(string key, string? v) =>
+        State.Set(key, null, string.IsNullOrEmpty(v) ? null : new AnswerValue(v, null));
+}

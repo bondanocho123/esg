@@ -1,0 +1,17 @@
+@* Pengganti tanda "-" di Excel: pertanyaan ditandai Tidak berlaku secara eksplisit *@
+<MudCheckBox T="bool"
+             Label="Tidak berlaku untuk site ini"
+             Value="IsNotApplicable"
+             ValueChanged="OnChanged"
+             Disabled="ReadOnly" />
+
+@code {
+    [Parameter, EditorRequired] public string QuestionKey { get; set; } = "";
+    [Parameter, EditorRequired] public FormState State { get; set; } = null!;
+    [Parameter] public bool ReadOnly { get; set; }
+
+    private bool IsNotApplicable => State.Get(QuestionKey)?.State == ValueState.NotApplicable;
+
+    private void OnChanged(bool na) =>
+        State.Set(QuestionKey, null, na ? new AnswerValue(null, null, ValueState.NotApplicable) : null);
+}
