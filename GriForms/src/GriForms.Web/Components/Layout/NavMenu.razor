@@ -1,7 +1,3 @@
-@implements IDisposable
-
-@inject NavigationManager NavigationManager
-
 <nav class="flex min-h-full flex-col gap-0.5 py-3">
     <p class="mx-5 mt-0 mb-1 text-[10px] font-semibold tracking-wider text-forest-icon/70 uppercase">Menu</p>
     <GfNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</GfNavLink>
@@ -14,15 +10,6 @@
     <AuthorizeView>
         <Authorized>
             <GfNavLink Href="Account/Manage" Icon="@Icons.Material.Filled.Person">@context.User.Identity?.Name</GfNavLink>
-            <form action="Account/Logout" method="post" class="contents">
-                <AntiforgeryToken />
-                <input type="hidden" name="ReturnUrl" value="@currentUrl" />
-                <button type="submit"
-                        class="mx-2 flex h-8 cursor-pointer items-center gap-2.5 rounded-md border-0 bg-transparent px-3 text-left text-xs font-medium text-on-forest/80 transition hover:bg-white/5 hover:text-on-forest">
-                    <GfIcon Icon="@Icons.Material.Filled.Logout" Size="GfSize.Sm" Class="text-forest-icon" />
-                    Logout
-                </button>
-            </form>
         </Authorized>
         <NotAuthorized>
             <GfNavLink Href="Account/Register" Icon="@Icons.Material.Filled.PersonAdd">Register</GfNavLink>
@@ -37,25 +24,14 @@
         </div>
         <p class="m-0 mt-1 text-[11px] leading-snug text-on-forest/60">Data lingkungan, sosial &amp; tata kelola dalam satu tempat.</p>
     </div>
+
+    @* Logout di dasar sidebar *@
+    <AuthorizeView>
+        <div class="mx-3 mt-2 border-t border-white/10 pt-2">
+            <LogoutButton Class="flex h-8 w-full cursor-pointer items-center justify-start gap-2.5 rounded-md border-0 bg-transparent px-3 text-left text-xs font-medium text-on-forest/80 transition hover:bg-white/5 hover:text-on-forest">
+                <GfIcon Icon="@Icons.Material.Filled.Logout" Size="GfSize.Sm" Class="text-forest-icon" />
+                Logout
+            </LogoutButton>
+        </div>
+    </AuthorizeView>
 </nav>
-
-@code {
-    private string? currentUrl;
-
-    protected override void OnInitialized()
-    {
-        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
-        NavigationManager.LocationChanged += OnLocationChanged;
-    }
-
-    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
-    {
-        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
-        StateHasChanged();
-    }
-
-    public void Dispose()
-    {
-        NavigationManager.LocationChanged -= OnLocationChanged;
-    }
-}

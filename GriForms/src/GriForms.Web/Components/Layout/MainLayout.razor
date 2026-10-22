@@ -9,7 +9,7 @@
    Mobile: dicentang = sidebar tampil. Desktop (lg): dicentang = sidebar disembunyikan. *@
 <input id="gf-nav-toggle" type="checkbox" class="peer sr-only" aria-label="Buka/tutup menu" />
 
-<header class="fixed inset-x-0 top-0 z-40 flex h-12 items-center gap-2 bg-linear-to-r from-forest-deep via-primary-dark to-primary px-3 text-white shadow-md shadow-forest/25">
+<header class="fixed inset-x-0 top-0 z-40 flex h-12 items-center gap-2 bg-linear-to-r from-forest-deep via-primary-dark to-primary px-3 dark:bg-forest-deep dark:via-forest-deep dark:to-primary-dark/45 text-white shadow-md shadow-forest/25">
     <label for="gf-nav-toggle"
            title="Buka/tutup menu"
            class="inline-flex size-8 cursor-pointer items-center justify-center rounded-md text-white/90 transition hover:bg-white/10 [#gf-nav-toggle:focus-visible~header_&]:ring-2 [#gf-nav-toggle:focus-visible~header_&]:ring-secondary">
@@ -20,15 +20,32 @@
         <span class="inline-flex size-7 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
             <GfIcon Icon="@Icons.Material.Filled.EnergySavingsLeaf" Size="GfSize.Sm" Class="text-sprout" />
         </span>
-        GriForms
+        Global Report Initiative
         <span class="hidden rounded-full bg-sprout/20 px-1.5 py-0.5 text-[10px] leading-none font-semibold text-sprout sm:inline">ESG</span>
     </a>
 
-    <div class="ml-auto flex items-center gap-1">
-        <a href="https://learn.microsoft.com/aspnet/core/" target="_blank"
-           class="rounded-md px-2.5 py-1 text-xs font-medium text-white/85 no-underline transition hover:bg-white/10 hover:text-white hover:no-underline">
-            About
-        </a>
+    <div class="ml-auto flex items-center gap-2">
+        <ThemeToggle />
+
+        <AuthorizeView>
+            <Authorized>
+                <a href="Account/Manage" title="Kelola akun"
+                   class="flex items-center gap-2 rounded-full py-0.5 pr-2.5 pl-0.5 text-xs font-medium text-white no-underline transition hover:bg-white/10 hover:text-white hover:no-underline">
+                    <GfAvatar Name="@context.User.Identity?.Name" Src="@context.User.FindFirst("picture")?.Value" />
+                    <span class="hidden max-w-48 truncate sm:inline">@context.User.Identity?.Name</span>
+                </a>
+                <LogoutButton AriaLabel="Logout"
+                              Class="inline-flex size-8 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-white/80 transition hover:bg-white/10 hover:text-white">
+                    <GfIcon Icon="@Icons.Material.Filled.Logout" Size="GfSize.Sm" />
+                </LogoutButton>
+            </Authorized>
+            <NotAuthorized>
+                <a href="Account/Login"
+                   class="rounded-md px-2.5 py-1 text-xs font-medium text-white/85 no-underline transition hover:bg-white/10 hover:text-white hover:no-underline">
+                    Login
+                </a>
+            </NotAuthorized>
+        </AuthorizeView>
     </div>
 </header>
 

@@ -6,12 +6,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
     <ResourcePreloader />
+    @* Harus sinkron & sedini mungkin: memasang kelas .dark sebelum halaman digambar *@
+    <script src="@Assets["js/theme.js"]"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" />
     @* layers.css harus pertama: menetapkan urutan layer dan memuat MudBlazor ke layer "mud" *@
     <link rel="stylesheet" href="@Assets["css/layers.css"]" />
     <link rel="stylesheet" href="@Assets["css/site.css"]" />
     <link rel="stylesheet" href="@Assets["GriForms.Web.styles.css"]" />
+    @* Palet gelap; menimpa :root dari MudThemeProvider saat html.dark aktif *@
+    <style>html.dark { color-scheme: dark; @((MarkupString)GriFormsTheme.DarkCssVariables()) }</style>
     <ImportMap />
     <link rel="icon" type="image/png" href="favicon.png" />
     <HeadOutlet @rendermode="PageRenderMode" />
@@ -22,6 +26,8 @@
     <ReconnectModal />
     <script src="@Assets["_content/MudBlazor/MudBlazor.min.js"]"></script>
     <script src="@Assets["_framework/blazor.web.js"]"></script>
+    @* Navigasi enhanced menyinkronkan atribut <html> dengan respons server; pasang ulang tema *@
+    <script>Blazor.addEventListener('enhancedload', gfTheme.apply);</script>
     <script src="@Assets["Components/Account/Shared/PasskeySubmit.razor.js"]" type="module"></script>
 </body>
 

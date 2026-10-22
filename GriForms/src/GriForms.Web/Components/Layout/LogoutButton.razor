@@ -1,0 +1,37 @@
+@implements IDisposable
+
+@inject NavigationManager NavigationManager
+
+@* Form POST ke Account/Logout; dipakai di header dan sidebar. Isi & gaya tombol dari pemanggil. *@
+<form action="Account/Logout" method="post" class="contents">
+    <AntiforgeryToken />
+    <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+    <button type="submit" title="Logout" aria-label="@(AriaLabel)" class="@Class">
+        @ChildContent
+    </button>
+</form>
+
+@code {
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public string? AriaLabel { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+
+    private string? currentUrl;
+
+    protected override void OnInitialized()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}
