@@ -18,7 +18,7 @@
                 {
                     var month = m;
                     <td>
-                        <MudNumericField T="decimal?" Variant="Variant.Text" HideSpinButtons="true"
+                        <MudNumericField T="decimal?" Variant="Variant.Text" Margin="Margin.Dense" HideSpinButtons="true"
                                          Disabled="ReadOnly"
                                          Error="@HasErrors"
                                          Value="@State.Get(RowKey(row.Key), PeriodKey(month))?.Number"

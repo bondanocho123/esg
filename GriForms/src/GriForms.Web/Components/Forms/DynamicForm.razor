@@ -4,16 +4,14 @@
 
 @foreach (var d in Definition.Disclosures)
 {
-    <MudPaper Class="pa-4 mb-4" @key="d.No">
-        <MudText Typo="Typo.h6">@d.No - @d.Title</MudText>
-
+    <GfCard @key="d.No" Title="@($"{d.No} - {d.Title}")" Variant="GfVariant.Primary">
         @foreach (var q in d.Questions.Where(VisibleRules.IsVisible(State)))
         {
             <DynamicComponent @key="q.Key"
                               Type="Registry.Resolve(q.Type)"
                               Parameters="ParametersFor(q)" />
         }
-    </MudPaper>
+    </GfCard>
 }
 
 @code {

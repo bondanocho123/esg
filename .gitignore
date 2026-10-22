@@ -3,3 +3,13 @@ obj/
 .vs/
 *.user
 *.suo
+
+# Node (Tailwind build GriForms.Web)
+node_modules/
+
+# SQLite runtime files
+*.db-shm
+*.db-wal
+
+# Konfigurasi lokal Claude Code
+.claude/

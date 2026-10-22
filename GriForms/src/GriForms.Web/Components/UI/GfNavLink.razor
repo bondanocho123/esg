@@ -1,0 +1,17 @@
+@* Item navigasi di sidebar hutan; item aktif disorot biru langit *@
+<NavLink href="@Href"
+         Match="@Match"
+         class="group mx-2 flex h-8 items-center gap-2.5 rounded-md px-3 text-xs font-medium text-on-forest/80 no-underline transition hover:bg-white/5 hover:text-on-forest hover:no-underline [&.active]:bg-secondary/15 [&.active]:text-secondary [&.active]:shadow-[inset_2px_0_0_currentColor]">
+    @if (Icon is not null)
+    {
+        <GfIcon Icon="@Icon" Size="GfSize.Sm" Class="text-forest-icon group-[.active]:text-secondary" />
+    }
+    <span class="truncate">@ChildContent</span>
+</NavLink>
+
+@code {
+    [Parameter, EditorRequired] public string Href { get; set; } = "";
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public NavLinkMatch Match { get; set; } = NavLinkMatch.Prefix;
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

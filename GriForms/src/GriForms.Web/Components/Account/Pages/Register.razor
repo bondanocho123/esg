@@ -5,6 +5,10 @@
 @using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
 @using Microsoft.AspNetCore.WebUtilities
+@using Microsoft.EntityFrameworkCore
+@using GriForms.Domain.Entities
+@using GriForms.Domain.Enums
+@using GriForms.Infrastructure.Persistence
 @using GriForms.Web.Data
 
 @inject UserManager<ApplicationUser> UserManager
@@ -14,6 +18,7 @@
 @inject ILogger<Register> Logger
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
+@inject AppDbContext AppDb
 
 <PageTitle>Register</PageTitle>
 
@@ -42,7 +47,18 @@
                 <label for="Input.ConfirmPassword">Confirm Password</label>
                 <ValidationMessage For="() => Input.ConfirmPassword" class="text-danger" />
             </div>
-            <button type="submit" class="w-100 btn btn-lg btn-primary">Register</button>
+            <div class="form-floating mb-3">
+                <InputSelect @bind-Value="Input.SiteId" id="Input.SiteId" class="form-select" aria-required="true">
+                    <option value="">-- Pilih site --</option>
+                    @foreach (var site in sites)
+                    {
+                        <option value="@site.Id">@site.Name</option>
+                    }
+                </InputSelect>
+                <label for="Input.SiteId">Site</label>
+                <ValidationMessage For="() => Input.SiteId" class="text-danger" />
+            </div>
+            <button type="submit" class="w-full btn btn-lg btn-primary">Register</button>
         </EditForm>
     </div>
     <div class="col-lg-4 col-lg-offset-2">
@@ -56,6 +72,7 @@
 
 @code {
     private IEnumerable<IdentityError>? identityErrors;
+    private List<Site> sites = [];
 
     [SupplyParameterFromForm]
     private InputModel Input { get; set; } = default!;
@@ -65,13 +82,16 @@
 
     private string? Message => identityErrors is null ? null : $"Error: {string.Join(", ", identityErrors.Select(error => error.Description))}";
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         Input ??= new();
+        sites = await AppDb.Sites.AsNoTracking().OrderBy(s => s.Id).ToListAsync();
     }
 
     public async Task RegisterUser(EditContext editContext)
     {
+        // Pengguna pertama menjadi Admin (tanpa site); selanjutnya Contributor pada site yang dipilih
+        var isFirstUser = !await UserManager.Users.AnyAsync();
         var user = CreateUser();
 
         await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
@@ -86,6 +106,14 @@
         }
 
         Logger.LogInformation("User created a new account with password.");
+
+        AppDb.UserSiteRoles.Add(new UserSiteRole
+        {
+            UserId = await UserManager.GetUserIdAsync(user),
+            SiteId = isFirstUser ? null : Input.SiteId,
+            Role = isFirstUser ? RoleName.Admin : RoleName.Contributor,
+        });
+        await AppDb.SaveChangesAsync();
 
         var userId = await UserManager.GetUserIdAsync(user);
         var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
@@ -148,5 +176,9 @@
         [Display(Name = "Confirm password")]
         [Compare("Password", ErrorMessage = "The password and confirmation password do not match.")]
         public string ConfirmPassword { get; set; } = "";
+
+        [Required(ErrorMessage = "Site wajib dipilih.")]
+        [Display(Name = "Site")]
+        public int? SiteId { get; set; }
     }
 }

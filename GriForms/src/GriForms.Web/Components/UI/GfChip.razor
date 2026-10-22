@@ -1,0 +1,16 @@
+@* Tag status kecil *@
+<span class="@($"inline-flex h-5 items-center gap-1 rounded-full px-2 text-[11px] leading-none font-semibold whitespace-nowrap {GfStyles.Chip(Variant, Appearance)} {Class}")">
+    @if (Icon is not null)
+    {
+        <GfIcon Icon="@Icon" Size="GfSize.Sm" Class="size-3" />
+    }
+    @ChildContent
+</span>
+
+@code {
+    [Parameter] public GfVariant Variant { get; set; } = GfVariant.Primary;
+    [Parameter] public GfAppearance Appearance { get; set; } = GfAppearance.Soft;
+    [Parameter] public string? Icon { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+}

@@ -1,0 +1,60 @@
+@* Tombol standar GriForms. Menjadi <a> bila Href diisi *@
+@if (Href is not null)
+{
+    <a href="@(Disabled ? null : Href)"
+       target="@Target"
+       aria-disabled="@(Disabled ? "true" : null)"
+       class="@CssClass"
+       @attributes="UserAttributes">
+        @Content
+    </a>
+}
+else
+{
+    <button type="@Type"
+            disabled="@Disabled"
+            class="@CssClass"
+            @onclick="OnClick"
+            @attributes="UserAttributes">
+        @Content
+    </button>
+}
+
+@code {
+    [Parameter] public GfVariant Variant { get; set; } = GfVariant.Primary;
+    [Parameter] public GfAppearance Appearance { get; set; } = GfAppearance.Filled;
+    [Parameter] public GfSize Size { get; set; } = GfSize.Md;
+    [Parameter] public string? StartIcon { get; set; }
+    [Parameter] public string? EndIcon { get; set; }
+    [Parameter] public string? Href { get; set; }
+    [Parameter] public string? Target { get; set; }
+    [Parameter] public string Type { get; set; } = "button";
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public bool FullWidth { get; set; }
+    [Parameter] public EventCallback<MouseEventArgs> OnClick { get; set; }
+    [Parameter] public string? Class { get; set; }
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter(CaptureUnmatchedValues = true)] public Dictionary<string, object>? UserAttributes { get; set; }
+
+    private GfSize IconSize => Size == GfSize.Lg ? GfSize.Md : GfSize.Sm;
+
+    private string CssClass =>
+        // border-transparent hanya untuk non-outlined; kalau digabung, urutan CSS Tailwind bisa menimpa warna border outlined
+        "inline-flex cursor-pointer items-center justify-center whitespace-nowrap rounded-gf border select-none " +
+        $"{(Appearance == GfAppearance.Outlined ? "" : "border-transparent")} " +
+        "font-semibold no-underline transition hover:no-underline active:translate-y-px " +
+        "disabled:pointer-events-none disabled:opacity-45 aria-disabled:pointer-events-none aria-disabled:opacity-45 " +
+        $"{GfStyles.ButtonSize(Size)} {GfStyles.Button(Variant, Appearance)} {(FullWidth ? "w-full" : "")} {Class}";
+
+    private RenderFragment Content => @<text>
+        @if (StartIcon is not null)
+        {
+            <GfIcon Icon="@StartIcon" Size="IconSize" />
+        }
+        @ChildContent
+        @if (EndIcon is not null)
+        {
+            <GfIcon Icon="@EndIcon" Size="IconSize" />
+        }
+    </text>;
+}

@@ -1,0 +1,122 @@
+@page "/ui-kit"
+
+<PageTitle>UI Kit</PageTitle>
+
+<GfHeader Title="UI Kit GriForms"
+          Subtitle="Katalog komponen Gf* bertema green environment: daun, langit, dan tanah."
+          Icon="@Icons.Material.Filled.Palette">
+    <Actions>
+        <GfButton Variant="GfVariant.Secondary" Appearance="GfAppearance.Soft" StartIcon="@Icons.Material.Filled.Download">Ekspor</GfButton>
+        <GfButton StartIcon="@Icons.Material.Filled.Add">Form baru</GfButton>
+    </Actions>
+</GfHeader>
+
+<div class="grid gap-4 lg:grid-cols-2">
+    <GfCard Title="Palet warna" Icon="@Icons.Material.Filled.ColorLens">
+        <div class="grid gap-2">
+            <div class="grid grid-cols-3 overflow-hidden rounded-lg text-[11px] font-medium">
+                <div class="bg-primary-light px-2 py-2 text-on-primary">light</div>
+                <div class="bg-primary px-2 py-2 text-on-primary">Primary · daun</div>
+                <div class="bg-primary-dark px-2 py-2 text-on-primary">dark</div>
+            </div>
+            <div class="grid grid-cols-3 overflow-hidden rounded-lg text-[11px] font-medium">
+                <div class="bg-secondary-light px-2 py-2 text-on-secondary">light</div>
+                <div class="bg-secondary px-2 py-2 text-on-secondary">Secondary · langit</div>
+                <div class="bg-secondary-dark px-2 py-2 text-white">dark</div>
+            </div>
+            <div class="grid grid-cols-3 overflow-hidden rounded-lg text-[11px] font-medium">
+                <div class="bg-tertiary-light px-2 py-2 text-on-tertiary">light</div>
+                <div class="bg-tertiary px-2 py-2 text-on-tertiary">Tertiary · tanah</div>
+                <div class="bg-tertiary-dark px-2 py-2 text-on-tertiary">dark</div>
+            </div>
+            <div class="grid grid-cols-3 overflow-hidden rounded-lg text-[11px] font-medium">
+                <div class="bg-forest px-2 py-2 text-on-forest">forest</div>
+                <div class="bg-canvas px-2 py-2 text-ink ring-1 ring-line ring-inset">canvas</div>
+                <div class="bg-sprout px-2 py-2 text-forest">sprout</div>
+            </div>
+        </div>
+    </GfCard>
+
+    <GfCard Title="Button" Icon="@Icons.Material.Filled.SmartButton">
+        @foreach (var appearance in Enum.GetValues<GfAppearance>())
+        {
+            <GfText Typo="Typo.overline" Muted="true" GutterBottom="true">@appearance</GfText>
+            <div class="mb-3 flex flex-wrap gap-2">
+                @foreach (var v in Variants)
+                {
+                    <GfButton Variant="v" Appearance="appearance">@v</GfButton>
+                }
+                <GfButton Appearance="appearance" Disabled="true">Disabled</GfButton>
+            </div>
+        }
+        <GfText Typo="Typo.overline" Muted="true" GutterBottom="true">Ukuran</GfText>
+        <div class="flex flex-wrap items-center gap-2">
+            <GfButton Size="GfSize.Sm" StartIcon="@Icons.Material.Filled.Save">Small</GfButton>
+            <GfButton Size="GfSize.Md" StartIcon="@Icons.Material.Filled.Save">Medium</GfButton>
+            <GfButton Size="GfSize.Lg" StartIcon="@Icons.Material.Filled.Save">Large</GfButton>
+        </div>
+    </GfCard>
+</div>
+
+<GfCard Title="Header" Icon="@Icons.Material.Filled.Title" Variant="GfVariant.Tertiary">
+    @foreach (var v in Variants)
+    {
+        <GfHeader Title="@($"Header {v}")" Subtitle="Subjudul halaman" Icon="@Icons.Material.Filled.Assessment" Variant="v" />
+    }
+</GfCard>
+
+<div class="grid gap-4 lg:grid-cols-2">
+    <GfCard Title="Icon & Text" Icon="@Icons.Material.Filled.Category" Variant="GfVariant.Secondary">
+        <div class="mb-3 flex flex-wrap gap-3">
+            @foreach (var v in Variants)
+            {
+                <GfIcon Icon="@Icons.Material.Filled.EnergySavingsLeaf" Variant="v" Title="@v.ToString()" />
+                <GfIcon Icon="@Icons.Material.Filled.WaterDrop" Variant="v" Title="@v.ToString()" />
+                <GfIcon Icon="@Icons.Material.Filled.Park" Variant="v" Title="@v.ToString()" />
+            }
+        </div>
+        <GfText Typo="Typo.h5" Variant="GfVariant.Primary">Teks primary (h5)</GfText>
+        <GfText Typo="Typo.subtitle1" Variant="GfVariant.Tertiary">Teks tertiary (subtitle1)</GfText>
+        <GfText>Teks body default.</GfText>
+        <GfText Typo="Typo.body2" Muted="true">Teks muted untuk keterangan tambahan.</GfText>
+    </GfCard>
+
+    <GfCard Title="Label & Chip" Icon="@Icons.Material.Filled.Label" Variant="GfVariant.Secondary">
+        <div class="mb-3 grid gap-3 sm:grid-cols-2">
+            <div>
+                <GfLabel For="demo-1" Required="true">Label wajib</GfLabel>
+                <input id="demo-1" class="form-control" placeholder="Input dengan kelas form-control" />
+            </div>
+            <div class="flex flex-col">
+                @foreach (var v in Variants)
+                {
+                    <GfLabel Variant="v">Label @v</GfLabel>
+                }
+            </div>
+        </div>
+        <div class="flex flex-wrap gap-1.5">
+            @foreach (var v in Variants)
+            {
+                <GfChip Variant="v" Appearance="GfAppearance.Filled" Icon="@Icons.Material.Filled.CheckCircle">@v</GfChip>
+                <GfChip Variant="v">@v soft</GfChip>
+                <GfChip Variant="v" Appearance="GfAppearance.Outlined">@v outlined</GfChip>
+            }
+        </div>
+    </GfCard>
+</div>
+
+<GfCard Title="Kelas kompatibilitas (halaman Account)" Icon="@Icons.Material.Filled.Code">
+    <div class="flex flex-wrap items-center gap-2">
+        <button class="btn btn-primary">btn-primary</button>
+        <button class="btn btn-secondary">btn-secondary</button>
+        <button class="btn btn-tertiary">btn-tertiary</button>
+        <button class="btn btn-outline-primary">btn-outline-primary</button>
+        <button class="btn btn-danger">btn-danger</button>
+        <a href="ui-kit">Tautan</a>
+    </div>
+    <div class="alert alert-success mt-3 mb-0">alert-success: data berhasil disimpan.</div>
+</GfCard>
+
+@code {
+    private static readonly GfVariant[] Variants = Enum.GetValues<GfVariant>();
+}
