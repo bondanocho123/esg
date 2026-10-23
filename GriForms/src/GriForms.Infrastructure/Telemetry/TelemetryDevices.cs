@@ -48,9 +48,13 @@ public sealed partial class TelemetryDevices(IAppReadDb db, IUnitOfWork uow) : I
         }
         catch (DbUpdateException)
         {
-            // Pendaftaran bersamaan dengan kode sama lolos cek di atas, tapi ditolak unique index
             uow.Remove(device);
-            throw new InvalidOperationException($"Kode device {code} sudah dipakai.");
+
+            // Pendaftaran bersamaan dengan kode sama lolos cek di atas, tapi ditolak unique index.
+            // Kegagalan lain (mis. 'database is locked') diteruskan, bukan disamarkan sebagai kode duplikat.
+            if (await db.TelemetryDevices.AnyAsync(d => d.Code == code, ct))
+                throw new InvalidOperationException($"Kode device {code} sudah dipakai.");
+            throw;
         }
 
         return key;
