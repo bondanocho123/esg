@@ -349,6 +349,79 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.ToTable("Submissions");
                 });
 
+            modelBuilder.Entity("GriForms.Domain.Entities.TelemetryDevice", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("ApiKeyHash")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SiteId")
+                        .HasColumnType("INTEGER");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApiKeyHash")
+                        .IsUnique();
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("SiteId");
+
+                    b.ToTable("TelemetryDevices");
+                });
+
+            modelBuilder.Entity("GriForms.Domain.Entities.TelemetryReading", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("DeviceId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Metric")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("RecordedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Unit")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<double>("Value")
+                        .HasColumnType("REAL");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("DeviceId", "Metric", "RecordedAt");
+
+                    b.ToTable("TelemetryReadings");
+                });
+
             modelBuilder.Entity("GriForms.Domain.Entities.Topic", b =>
                 {
                     b.Property<int>("Id")
@@ -460,6 +533,28 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.Navigation("Site");
 
                     b.Navigation("Topic");
+                });
+
+            modelBuilder.Entity("GriForms.Domain.Entities.TelemetryDevice", b =>
+                {
+                    b.HasOne("GriForms.Domain.Entities.Site", "Site")
+                        .WithMany()
+                        .HasForeignKey("SiteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Site");
+                });
+
+            modelBuilder.Entity("GriForms.Domain.Entities.TelemetryReading", b =>
+                {
+                    b.HasOne("GriForms.Domain.Entities.TelemetryDevice", "Device")
+                        .WithMany()
+                        .HasForeignKey("DeviceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Device");
                 });
 
             modelBuilder.Entity("GriForms.Domain.Entities.UserSiteRole", b =>
