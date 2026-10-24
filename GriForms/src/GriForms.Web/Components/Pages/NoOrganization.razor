@@ -1,0 +1,16 @@
+@page "/tanpa-organisasi"
+
+@using Microsoft.AspNetCore.Authorization
+
+@attribute [Authorize]
+
+<PageTitle>Belum terhubung ke organisasi</PageTitle>
+
+<GfHeader Title="Akun belum terhubung ke organisasi aktif" Icon="@Icons.Material.Filled.Info" Variant="GfVariant.Tertiary" />
+
+<GfCard Variant="GfVariant.Tertiary">
+    <GfText Typo="Typo.body2">
+        Akun belum terhubung ke organisasi aktif. Hubungi Admin organisasi Anda agar akun ini diberi peran,
+        atau minta pengelola platform mengaktifkan kembali organisasinya.
+    </GfText>
+</GfCard>

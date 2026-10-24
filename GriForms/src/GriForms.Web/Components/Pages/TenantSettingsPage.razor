@@ -1,0 +1,270 @@
+@page "/pengaturan-organisasi"
+
+@using Microsoft.AspNetCore.Authorization
+@using GriForms.Application.Abstractions
+@using GriForms.Application.Tenancy
+@using GriForms.Domain.Enums
+@using GriForms.Web.Services
+
+@attribute [Authorize(Policy = TenancyPolicies.TenantAdmin)]
+
+@inject ITenantSettings Settings
+@inject ITenantSession Session
+@inject ILogger<TenantSettingsPage> Logger
+
+<PageTitle>Pengaturan Organisasi</PageTitle>
+
+<GfHeader Title="Pengaturan Organisasi"
+          Subtitle="@($"Site dan pengguna {Session.Current.ActiveTenant?.Name}. Perubahan hanya berlaku di organisasi ini.")"
+          Icon="@Icons.Material.Filled.Settings" />
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger" role="alert">@_error</div>
+}
+@if (_notice is not null)
+{
+    <div class="alert alert-success" role="status">@_notice</div>
+}
+
+@if (!_loaded)
+{
+    <GfText Muted="true">Memuat pengaturan...</GfText>
+}
+else
+{
+    <GfCard Title="Site" Icon="@Icons.Material.Filled.Place">
+        <table class="table mb-3 text-xs">
+            <thead>
+                <tr><th>Kode</th><th>Nama</th><th>Lokasi</th><th>Aktif</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var site in _sites)
+                {
+                    <tr @key="site.Id">
+                        @if (_editing is { } edit && edit.SiteId == site.Id)
+                        {
+                            <td><input class="form-control" aria-label="Kode site" @bind="edit.Code" /></td>
+                            <td><input class="form-control" aria-label="Nama site" @bind="edit.Name" /></td>
+                            <td><input class="form-control" aria-label="Lokasi site" @bind="edit.Location" /></td>
+                            <td><input type="checkbox" aria-label="Site aktif" @bind="edit.IsActive" /></td>
+                            <td class="whitespace-nowrap">
+                                <GfButton Size="GfSize.Sm" Disabled="_busy" OnClick="SaveSiteAsync">Simpan</GfButton>
+                                <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" OnClick="CancelEdit">Batal</GfButton>
+                            </td>
+                        }
+                        else
+                        {
+                            <td>@site.Code</td>
+                            <td>@site.Name</td>
+                            <td>@site.Location</td>
+                            <td>@(site.IsActive ? "Ya" : "Tidak")</td>
+                            <td>
+                                <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.Edit"
+                                          OnClick="() => StartEdit(site)">Ubah</GfButton>
+                            </td>
+                        }
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <div class="grid gap-2 sm:grid-cols-[8rem_1fr_1fr_auto]">
+            <input class="form-control" placeholder="Kode" aria-label="Kode site baru" @bind="_newSite.Code" />
+            <input class="form-control" placeholder="Nama" aria-label="Nama site baru" @bind="_newSite.Name" />
+            <input class="form-control" placeholder="Lokasi" aria-label="Lokasi site baru" @bind="_newSite.Location" />
+            <GfButton Size="GfSize.Sm" StartIcon="@Icons.Material.Filled.Add" Disabled="_busy" OnClick="AddSiteAsync">Tambah site</GfButton>
+        </div>
+    </GfCard>
+
+    <GfCard Title="Pengguna" Icon="@Icons.Material.Filled.Group" Variant="GfVariant.Secondary">
+        <div class="mb-4 grid gap-2 sm:grid-cols-[1fr_1fr_9rem_10rem_auto]">
+            <input type="email" class="form-control" placeholder="Email" aria-label="Email pengguna" @bind="_newMember.Email" />
+            <input type="password" class="form-control" autocomplete="new-password"
+                   placeholder="Kata sandi awal (hanya untuk akun baru)" aria-label="Kata sandi awal" @bind="_newMember.Password" />
+            <select class="form-select" aria-label="Peran" @bind="_newMember.Role">
+                @foreach (var role in Roles)
+                {
+                    <option value="@role">@role</option>
+                }
+            </select>
+            <select class="form-select" aria-label="Site" @bind="_newMember.SiteId">
+                <option value="">Semua site</option>
+                @foreach (var site in _sites.Where(s => s.IsActive))
+                {
+                    <option value="@site.Id">@site.Name</option>
+                }
+            </select>
+            <GfButton Size="GfSize.Sm" StartIcon="@Icons.Material.Filled.PersonAdd" Disabled="_busy" OnClick="AddMemberAsync">Tambah pengguna</GfButton>
+        </div>
+        <GfText Typo="Typo.caption" Muted="true" GutterBottom="true">
+            Contributor, Reviewer, dan Approver per site; Admin dan ReportViewer untuk semua site.
+        </GfText>
+
+        @foreach (var member in _members)
+        {
+            var grant = GrantFormFor(member.UserId);
+            <div @key="member.UserId" class="border-t border-line py-2">
+                <div class="flex flex-wrap items-center gap-2">
+                    <span class="min-w-48 text-xs font-semibold text-ink">@member.Email</span>
+                    @foreach (var role in member.Roles)
+                    {
+                        <span class="inline-flex items-center gap-1">
+                            <GfChip Variant="GfVariant.Secondary">@role.Role · @(role.SiteName ?? "Semua site")</GfChip>
+                            <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" Disabled="_busy" aria-label="Cabut peran"
+                                      StartIcon="@Icons.Material.Filled.Close" OnClick="() => RevokeAsync(role.RoleId)" />
+                        </span>
+                    }
+                </div>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                    <select class="form-select h-7 w-36 text-xs" aria-label="Peran tambahan" @bind="grant.Role">
+                        @foreach (var role in Roles)
+                        {
+                            <option value="@role">@role</option>
+                        }
+                    </select>
+                    <select class="form-select h-7 w-40 text-xs" aria-label="Site peran tambahan" @bind="grant.SiteId">
+                        <option value="">Semua site</option>
+                        @foreach (var site in _sites.Where(s => s.IsActive))
+                        {
+                            <option value="@site.Id">@site.Name</option>
+                        }
+                    </select>
+                    <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Outlined" Disabled="_busy"
+                              OnClick="() => GrantAsync(member.UserId)">Beri peran</GfButton>
+                </div>
+            </div>
+        }
+    </GfCard>
+}
+
+@code {
+    private static readonly RoleName[] Roles = Enum.GetValues<RoleName>();
+
+    private IReadOnlyList<SiteView> _sites = [];
+    private IReadOnlyList<MemberView> _members = [];
+    private readonly Dictionary<string, RoleForm> _grantForms = new();
+    private SiteForm _newSite = new();
+    private MemberForm _newMember = new();
+    private SiteForm? _editing;
+    private bool _loaded;
+    private bool _busy;
+    private string? _error;
+    private string? _notice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RunAsync(LoadAsync, notice: null);
+        _loaded = true;
+    }
+
+    private async Task LoadAsync()
+    {
+        _sites = await Settings.GetSitesAsync(CancellationToken.None);
+        _members = await Settings.GetMembersAsync(CancellationToken.None);
+    }
+
+    private RoleForm GrantFormFor(string userId) =>
+        _grantForms.TryGetValue(userId, out var form) ? form : _grantForms[userId] = new RoleForm();
+
+    private void StartEdit(SiteView site) =>
+        _editing = new SiteForm { SiteId = site.Id, Code = site.Code, Name = site.Name, Location = site.Location, IsActive = site.IsActive };
+
+    private void CancelEdit() => _editing = null;
+
+    private Task AddSiteAsync() => RunAsync(async () =>
+    {
+        await Settings.AddSiteAsync(_newSite.ToInput(), CancellationToken.None);
+        _newSite = new SiteForm();
+        await LoadAsync();
+    }, "Site ditambahkan.");
+
+    private Task SaveSiteAsync() => RunAsync(async () =>
+    {
+        if (_editing is not { } edit) return;
+        await Settings.UpdateSiteAsync(edit.SiteId, edit.ToInput(), edit.IsActive, CancellationToken.None);
+        _editing = null;
+        await LoadAsync();
+    }, "Site disimpan.");
+
+    private async Task AddMemberAsync()
+    {
+        AccountAssignment? result = null;
+        await RunAsync(async () =>
+        {
+            result = await Settings.AddMemberAsync(
+                _newMember.Email, _newMember.Password, _newMember.Role, _newMember.SiteId, CancellationToken.None);
+            _newMember = new MemberForm();
+            await LoadAsync();
+        }, notice: null);
+
+        if (result is not null)
+            _notice = result.Created
+                ? $"Akun {result.Email} dibuat. Pengguna wajib mengganti kata sandi awal saat login pertama."
+                : $"Peran ditambahkan untuk {result.Email}. Kata sandi akun yang sudah ada tidak diubah.";
+    }
+
+    private Task GrantAsync(string userId) => RunAsync(async () =>
+    {
+        var form = GrantFormFor(userId);
+        await Settings.GrantRoleAsync(userId, form.Role, form.SiteId, CancellationToken.None);
+        _grantForms.Remove(userId);
+        await LoadAsync();
+    }, "Peran diberikan.");
+
+    private Task RevokeAsync(int roleId) => RunAsync(async () =>
+    {
+        await Settings.RevokeRoleAsync(roleId, CancellationToken.None);
+        await LoadAsync();
+    }, "Peran dicabut.");
+
+    // Semua operasi berurutan: satu DbContext per circuit tidak boleh dipakai bersamaan
+    private async Task RunAsync(Func<Task> action, string? notice)
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        _notice = null;
+        try
+        {
+            await action();
+            _notice = notice;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Operasi Pengaturan Organisasi gagal");
+            _error = "Operasi gagal. Coba lagi.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private sealed class SiteForm
+    {
+        public int SiteId { get; init; }
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string? Location { get; set; }
+        public bool IsActive { get; set; } = true;
+
+        public SiteInput ToInput() => new(Code, Name, Location);
+    }
+
+    private class RoleForm
+    {
+        public RoleName Role { get; set; } = RoleName.Contributor;
+        public int? SiteId { get; set; }
+    }
+
+    private sealed class MemberForm : RoleForm
+    {
+        public string Email { get; set; } = "";
+        public string? Password { get; set; }
+    }
+}

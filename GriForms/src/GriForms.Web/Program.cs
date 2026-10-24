@@ -1,5 +1,7 @@
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.Components.Server.Circuits;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -28,10 +30,18 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddFormFields();
 builder.Services.AddScoped<ICurrentUser, AuthStateCurrentUser>();
+builder.Services.AddScoped<IUserAccounts, IdentityUserAccounts>();
 
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<IdentityRedirectManager>();
 builder.Services.AddScoped<AuthenticationStateProvider, IdentityRevalidatingAuthenticationStateProvider>();
+
+// Multitenant: tenant aktif circuit ditentukan saat circuit dibuka; request HTTP lewat TenantMiddleware
+builder.Services.AddScoped<CircuitHandler, TenantCircuitHandler>();
+builder.Services.AddScoped<IAuthorizationHandler, TenancyAuthorizationHandler>();
+builder.Services.AddAuthorizationBuilder()
+    .AddPolicy(TenancyPolicies.PlatformAdmin, p => p.RequireAuthenticatedUser().AddRequirements(new PlatformAdminRequirement()))
+    .AddPolicy(TenancyPolicies.TenantAdmin, p => p.RequireAuthenticatedUser().AddRequirements(new TenantAdminRequirement()));
 
 builder.Services.AddAuthentication(options =>
     {
@@ -96,6 +106,9 @@ app.UseHttpsRedirection();
 app.UseRateLimiter();
 app.UseAntiforgery();
 
+// Setelah autentikasi (ditambahkan otomatis di awal pipeline): tenant aktif dan wajib ganti kata sandi
+app.UseMiddleware<TenantMiddleware>();
+
 app.MapStaticAssets();
 
 // Ingest telemetry dari device (ESP32). Endpoint JSON tidak terkena antiforgery.
@@ -110,10 +123,22 @@ app.MapPost("/api/telemetry", async (
     })
     .RequireRateLimiting("telemetry");
 
+// Pemilih tenant di navbar (form POST biasa, berfungsi juga di halaman Account yang statis).
+// Tenant divalidasi terhadap keanggotaan di server; halaman dimuat ulang agar semua data mengikuti tenant baru.
+app.MapPost("/tenant/switch", async (
+        [FromForm] int tenantId, [FromForm] string? returnUrl, ITenantSession session, CancellationToken ct) =>
+    {
+        await session.SwitchAsync(tenantId, ct);
+        return TypedResults.LocalRedirect($"~/{returnUrl}");
+    })
+    .RequireAuthorization();
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
+
+await app.RunPlatformBootstrapAsync();
 
 app.Run();

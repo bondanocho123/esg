@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GriForms.Infrastructure.Submissions;
 
+// Null juga untuk submission tenant lain: filter tenant di AppDbContext menyembunyikannya
 public sealed class SubmissionQueries(IAppReadDb db, IFormDefinitionReader reader) : ISubmissionQueries
 {
     public async Task<SubmissionView?> GetAsync(int submissionId, CancellationToken ct)

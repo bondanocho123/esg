@@ -1,10 +1,12 @@
 using GriForms.Application.Abstractions;
+using GriForms.Application.Tenancy;
 using GriForms.Infrastructure.Consolidation;
 using GriForms.Infrastructure.Excel;
 using GriForms.Infrastructure.Forms;
 using GriForms.Infrastructure.Persistence;
 using GriForms.Infrastructure.Submissions;
 using GriForms.Infrastructure.Telemetry;
+using GriForms.Infrastructure.Tenancy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,7 +15,7 @@ namespace GriForms.Infrastructure;
 
 public static class DependencyInjection
 {
-    // ICurrentUser didaftarkan oleh host (Web), karena identitas pengguna bergantung pada cara login
+    // ICurrentUser dan IUserAccounts didaftarkan oleh host (Web), karena identitas pengguna bergantung pada cara login
     public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration config)
     {
         var provider = config["Database:Provider"] ?? "Sqlite";
@@ -24,6 +26,17 @@ public static class DependencyInjection
         services.AddSingleton<IClock, SystemClock>();
         services.AddSingleton<RowVersionInterceptor>();
         services.AddScoped<AuditInterceptor>();
+
+        // Tenant aktif per circuit atau request; diisi TenantSession, dibaca filter tenant di AppDbContext
+        services.AddScoped<TenantContext>();
+        services.AddScoped<ITenantContext>(sp => sp.GetRequiredService<TenantContext>());
+        services.AddScoped<ITenantSession, TenantSession>();
+        services.AddScoped<IUserProfiles, UserProfiles>();
+        services.AddScoped<IOrganizationAdmin, OrganizationAdmin>();
+        services.AddScoped<ITenantSettings, TenantSettings>();
+        services.AddScoped<IFormCatalog, FormCatalog>();
+        services.AddScoped<IPlatformBootstrap, PlatformBootstrapper>();
+        services.AddSingleton(ReadBootstrapOptions(config));
 
         services.AddDbContext<AppDbContext>((sp, options) =>
         {
@@ -46,6 +59,7 @@ public static class DependencyInjection
         services.AddScoped<ITelemetryDevices, TelemetryDevices>();
 
         services.AddSingleton<IExcelImporter, DataKonsolidasiImporter>();
+        services.AddScoped<ILegacySiteMapper, LegacySiteMapper>();
         services.AddSingleton<IConsolidationExporter, ClosedXmlConsolidationExporter>();
         services
             .AddCardWriter<NarrativeCardWriter>()
@@ -57,6 +71,25 @@ public static class DependencyInjection
     public static IServiceCollection AddCardWriter<TWriter>(this IServiceCollection services)
         where TWriter : class, ICardWriter
         => services.AddSingleton<ICardWriter, TWriter>();
+
+    // Bootstrap:PlatformAdmin:{Email,Password} dan Bootstrap:TenantAdmins:{KodeTenant} (daftar email, atau satu
+    // string dipisah koma). Diisi lewat environment atau user-secrets, bukan appsettings.json yang di-commit.
+    private static BootstrapOptions ReadBootstrapOptions(IConfiguration config)
+    {
+        var tenantAdmins = config.GetSection("Bootstrap:TenantAdmins").GetChildren()
+            .ToDictionary(
+                tenant => tenant.Key,
+                tenant => (IReadOnlyList<string>)(tenant.Value is { } list
+                        ? list.Split(new[] { ',', ';' },StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                        : tenant.GetChildren().Select(e => e.Value?.Trim()).OfType<string>().Where(e => e.Length > 0))
+                    .ToList(),
+                StringComparer.OrdinalIgnoreCase);
+
+        return new BootstrapOptions(
+            config["Bootstrap:PlatformAdmin:Email"],
+            config["Bootstrap:PlatformAdmin:Password"],
+            tenantAdmins);
+    }
 
     // Provider dipilih lewat konfigurasi "Database:Provider". Pindah ke SQL Server atau PostgreSQL
     // berarti menambah paket provider dan satu cabang di sini.

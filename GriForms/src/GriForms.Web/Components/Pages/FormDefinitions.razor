@@ -1,0 +1,77 @@
+@page "/definisi-form"
+
+@using Microsoft.AspNetCore.Authorization
+@using GriForms.Application.Abstractions
+@using GriForms.Application.Forms
+@using GriForms.Web.Services
+
+@attribute [Authorize(Policy = TenancyPolicies.PlatformAdmin)]
+
+@inject IFormCatalog Catalog
+@inject ILogger<FormDefinitions> Logger
+
+<PageTitle>Definisi form</PageTitle>
+
+<GfHeader Title="Definisi form"
+          Subtitle="Katalog form GRI (topik, versi, dan pemetaan) berlaku untuk semua organisasi dan hanya dikelola PlatformAdmin."
+          Icon="@Icons.Material.Filled.Description" />
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger" role="alert">@_error</div>
+}
+else if (_versions is null)
+{
+    <GfText Muted="true">Memuat definisi form...</GfText>
+}
+else if (_versions.Count == 0)
+{
+    <GfCard Title="Belum ada definisi form" Icon="@Icons.Material.Filled.Description" Variant="GfVariant.Tertiary">
+        <GfText Typo="Typo.body2" Muted="true">Belum ada versi form yang tersimpan.</GfText>
+    </GfCard>
+}
+else
+{
+    <GfCard Title="Versi form" Icon="@Icons.Material.Filled.Description">
+        <table class="table text-xs">
+            <thead>
+                <tr><th>Topik</th><th>Versi</th><th>Standar</th><th>Berlaku</th><th>Status</th><th>Pemetaan</th></tr>
+            </thead>
+            <tbody>
+                @foreach (var v in _versions)
+                {
+                    <tr @key="v.Id">
+                        <td>@v.TopicCode @v.TopicName</td>
+                        <td>@v.VersionNo</td>
+                        <td>@v.StandardRef</td>
+                        <td>@v.EffectiveFromYear–@(v.EffectiveToYear?.ToString() ?? "sekarang")</td>
+                        <td>@(v.IsPublished ? "Published" : "Draft")</td>
+                        <td>@v.MappingCount</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </GfCard>
+}
+
+@code {
+    private IReadOnlyList<FormVersionSummary>? _versions;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _versions = await Catalog.GetVersionsAsync(CancellationToken.None);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Gagal memuat definisi form");
+            _error = "Gagal memuat definisi form.";
+        }
+    }
+}

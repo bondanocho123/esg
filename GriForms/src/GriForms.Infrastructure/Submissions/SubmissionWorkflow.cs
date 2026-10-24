@@ -9,6 +9,7 @@ using Microsoft.EntityFrameworkCore;
 namespace GriForms.Infrastructure.Submissions;
 
 // Menerapkan transisi status. Aturan transisi sendiri ada di Submission.Transition (Domain).
+// Submission tenant lain tidak terlihat (filter tenant di AppDbContext), jadi dianggap tidak ditemukan.
 public sealed class SubmissionWorkflow(
     IAppReadDb db, IUnitOfWork uow, IFormDefinitionReader reader, IValidationEngine validation,
     ICurrentUser user, IClock clock) : ISubmissionWorkflow
@@ -54,6 +55,7 @@ public sealed class SubmissionWorkflow(
 
         uow.Add(new AuditEntry
         {
+            TenantId = submission.TenantId,
             EntityType = nameof(Submission),
             EntityId = submission.Id.ToString(),
             Action = "Transition",

@@ -5,6 +5,8 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GriForms.Infrastructure.Telemetry;
 
+// Peran, site, device, dan reading dibatasi ke tenant aktif oleh filter tenant di AppDbContext,
+// jadi "semua site" untuk Admin berarti semua site di tenant aktif saja.
 public sealed class TelemetryQueries(IAppReadDb db) : ITelemetryQueries
 {
     public async Task<TelemetryAccess> GetAccessAsync(string userId, CancellationToken ct)
@@ -16,7 +18,7 @@ public sealed class TelemetryQueries(IAppReadDb db) : ITelemetryQueries
 
         var isAdmin = roles.Any(r => r.Role == RoleName.Admin);
 
-        // Peran tanpa site (mis. Admin) berlaku untuk semua site
+        // Peran tanpa site (mis. Admin) berlaku untuk semua site di tenant aktif
         if (roles.Any(r => r.SiteId is null)) return new TelemetryAccess(isAdmin, null);
 
         return new TelemetryAccess(isAdmin, roles.Select(r => r.SiteId!.Value).Distinct().Order().ToList());

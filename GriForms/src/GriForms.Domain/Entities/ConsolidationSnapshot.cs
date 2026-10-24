@@ -1,8 +1,9 @@
 namespace GriForms.Domain.Entities;
 
-public class ConsolidationSnapshot
+public class ConsolidationSnapshot : ITenantOwned
 {
     public int Id { get; set; }
+    public int TenantId { get; set; }
     public int PeriodId { get; set; }
     public int TopicId { get; set; }
     public DateTime CreatedAt { get; set; }

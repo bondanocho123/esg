@@ -6,7 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GriForms.Infrastructure.Telemetry;
 
-public sealed partial class TelemetryDevices(IAppReadDb db, IUnitOfWork uow) : ITelemetryDevices
+// Site dan kode device dicek terhadap tenant aktif saja (filter tenant di AppDbContext):
+// site tenant lain tidak ditemukan, dan kode yang sama boleh dipakai tenant lain.
+public sealed partial class TelemetryDevices(IAppReadDb db, IUnitOfWork uow, ITenantContext tenant) : ITelemetryDevices
 {
     private const int MaxCodeLength = 50;
     private const int MaxNameLength = 100;
@@ -16,7 +18,7 @@ public sealed partial class TelemetryDevices(IAppReadDb db, IUnitOfWork uow) : I
 
     public async Task<string> RegisterAsync(TelemetryAccess access, string code, string name, int siteId, CancellationToken ct)
     {
-        if (access is null || !access.IsAdmin)
+        if (access is null || !access.IsAdmin || tenant.TenantId is not { } tenantId)
             throw new UnauthorizedAccessException("Hanya Admin yang boleh mendaftarkan device.");
 
         code = code?.Trim() ?? "";
@@ -36,6 +38,7 @@ public sealed partial class TelemetryDevices(IAppReadDb db, IUnitOfWork uow) : I
         var key = DeviceApiKey.Generate();
         var device = new TelemetryDevice
         {
+            TenantId = tenantId,
             Code = code,
             Name = name.Length == 0 ? code : name,
             SiteId = siteId,

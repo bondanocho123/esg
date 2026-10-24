@@ -1,0 +1,54 @@
+@implements IDisposable
+
+@using GriForms.Application.Abstractions
+
+@inject ITenantSession Session
+@inject NavigationManager NavigationManager
+
+@* Nama organisasi aktif selalu tampil. Pemilih hanya untuk anggota lebih dari satu organisasi: form POST biasa ke
+   tenant/switch (berfungsi juga di halaman Account yang statis); server memvalidasi keanggotaan lalu memuat ulang halaman. *@
+@if (Session.Current.ActiveTenant is { } active)
+{
+    @if (Session.Current.Memberships.Count > 1)
+    {
+        <form action="tenant/switch" method="post" class="contents">
+            <AntiforgeryToken />
+            <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+            <select name="TenantId" aria-label="Pilih organisasi" title="Organisasi aktif" onchange="this.form.submit()"
+                    class="h-7 max-w-44 cursor-pointer truncate rounded-md border border-white/20 bg-white/10 px-2 text-xs font-medium text-white">
+                @foreach (var tenant in Session.Current.Memberships)
+                {
+                    <option value="@tenant.Id" selected="@(tenant.Id == active.Id)" class="text-ink">@tenant.Name</option>
+                }
+            </select>
+        </form>
+    }
+    else
+    {
+        <span title="Organisasi aktif"
+              class="hidden max-w-44 truncate rounded-md bg-white/10 px-2 py-1 text-xs font-medium text-white/90 sm:inline">
+            @active.Name
+        </span>
+    }
+}
+
+@code {
+    private string? currentUrl;
+
+    protected override void OnInitialized()
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        currentUrl = NavigationManager.ToBaseRelativePath(e.Location);
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

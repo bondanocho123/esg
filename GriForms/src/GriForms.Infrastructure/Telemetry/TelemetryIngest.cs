@@ -1,6 +1,7 @@
 using GriForms.Application.Abstractions;
 using GriForms.Application.Telemetry;
 using GriForms.Domain.Entities;
+using GriForms.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
@@ -8,8 +9,9 @@ namespace GriForms.Infrastructure.Telemetry;
 
 // Hanya menulis TelemetryReading dan TelemetryDevice.LastSeenAt. Jangan mengubah Answer dari sini:
 // AuditInterceptor membaca ICurrentUser, yang tidak tersedia di request HTTP di luar circuit Blazor.
+// Request device tidak login, jadi tidak ada tenant aktif: tenant ditentukan dari device yang dikenali lewat key.
 public sealed class TelemetryIngest(
-    IAppReadDb db, IUnitOfWork uow, ITelemetryNotifier notifier, IClock clock, ILogger<TelemetryIngest> logger) : ITelemetryIngest
+    AppDbContext db, ITelemetryNotifier notifier, IClock clock, ILogger<TelemetryIngest> logger) : ITelemetryIngest
 {
     private const int MaxReadingsPerRequest = 50;
 
@@ -23,12 +25,21 @@ public sealed class TelemetryIngest(
             return IngestResult.Unauthorized("Header X-Device-Key wajib diisi.");
 
         var hash = DeviceApiKey.Hash(deviceKey);
-        var device = await db.TelemetryDevices.FirstOrDefaultAsync(d => d.ApiKeyHash == hash, ct);
+
+        // IgnoreQueryFilters: ingest tanpa login, device dicari di semua tenant lewat ApiKeyHash (unik global)
+        var device = await db.TelemetryDevices.IgnoreQueryFilters().FirstOrDefaultAsync(d => d.ApiKeyHash == hash, ct);
         if (device is null)
         {
             logger.LogWarning("Telemetry ditolak: API key tidak dikenal");
             return IngestResult.Unauthorized("API key device tidak dikenal.");
         }
+
+        using var scope = logger.BeginScope(new Dictionary<string, object?>
+        {
+            ["TenantId"] = device.TenantId,
+            ["SiteId"] = device.SiteId,
+        });
+
         if (!device.IsActive)
         {
             logger.LogWarning("Telemetry ditolak: device {DeviceCode} nonaktif", device.Code);
@@ -56,9 +67,9 @@ public sealed class TelemetryIngest(
         foreach (var input in inputs)
         {
             var spec = TelemetryMetrics.Find(input.Metric!)!;
-            uow.Add(new TelemetryReading
+            db.Add(new TelemetryReading
             {
-                DeviceId = device.Id,
+                DeviceId = device.Id,   // reading mengikuti tenant device
                 Metric = spec.Metric,
                 Value = input.Value!.Value,
                 Unit = spec.Unit,   // unit dari daftar metrik, bukan dari device
@@ -68,7 +79,7 @@ public sealed class TelemetryIngest(
         }
         device.LastSeenAt = now;
 
-        await uow.SaveChangesAsync(ct);
+        await db.SaveChangesAcrossTenantsAsync(ct);
         logger.LogInformation("Telemetry diterima dari {DeviceCode}: {Count} reading", device.Code, inputs.Count);
 
         notifier.Publish(device.Id);

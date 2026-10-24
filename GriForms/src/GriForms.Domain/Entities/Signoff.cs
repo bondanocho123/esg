@@ -11,4 +11,6 @@ public class Signoff
     public string DisplayName { get; set; } = "";
     public string? JobTitle { get; set; }
     public DateTime SignedAt { get; set; }
+
+    public Submission Submission { get; set; } = null!;   // dipakai filter tenant; tenant mengikuti submission
 }

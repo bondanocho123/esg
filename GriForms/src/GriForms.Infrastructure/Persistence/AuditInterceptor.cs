@@ -8,7 +8,7 @@ using Microsoft.EntityFrameworkCore.Diagnostics;
 namespace GriForms.Infrastructure.Persistence;
 
 // Mencatat perubahan Answer ke AuditEntry, terpisah dari kode yang menyimpan jawaban
-public class AuditInterceptor(ICurrentUser user, IClock clock) : SaveChangesInterceptor
+public class AuditInterceptor(ICurrentUser user, IClock clock, ITenantContext tenant) : SaveChangesInterceptor
 {
     public override InterceptionResult<int> SavingChanges(DbContextEventData e, InterceptionResult<int> result)
     {
@@ -35,6 +35,8 @@ public class AuditInterceptor(ICurrentUser user, IClock clock) : SaveChangesInte
         {
             db.Add(new AuditEntry
             {
+                // Answer hanya bisa diubah di tenant aktif (TenantGuardInterceptor); 0 ditolak di sana bila tenant kosong
+                TenantId = tenant.TenantId ?? 0,
                 EntityType = nameof(Answer),
                 EntityId = $"{x.Entity.SubmissionId}:{x.Entity.QuestionKey}|{x.Entity.PeriodKey}",
                 Action = x.State.ToString(),

@@ -1,8 +1,9 @@
 namespace GriForms.Domain.Entities;
 
-public class AuditEntry
+public class AuditEntry : ITenantOwned
 {
     public long Id { get; set; }
+    public int TenantId { get; set; }
     public string EntityType { get; set; } = "";
     public string EntityId { get; set; } = "";
     public string Action { get; set; } = "";

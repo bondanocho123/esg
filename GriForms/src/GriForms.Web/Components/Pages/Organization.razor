@@ -1,0 +1,242 @@
+@page "/organisasi"
+
+@using Microsoft.AspNetCore.Authorization
+@using GriForms.Application.Abstractions
+@using GriForms.Application.Tenancy
+@using GriForms.Web.Services
+
+@attribute [Authorize(Policy = TenancyPolicies.PlatformAdmin)]
+
+@inject IOrganizationAdmin Organizations
+@inject ILogger<Organization> Logger
+
+<PageTitle>Organisasi</PageTitle>
+
+<GfHeader Title="Organisasi"
+          Subtitle="Kelola organisasi, site-nya, dan Admin organisasi. Data pelaporan tiap organisasi tidak terlihat dari halaman ini."
+          Icon="@Icons.Material.Filled.Domain" />
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger" role="alert">@_error</div>
+}
+@if (_notice is not null)
+{
+    <div class="alert alert-success" role="status">@_notice</div>
+}
+
+<GfCard Title="Buat organisasi" Icon="@Icons.Material.Filled.AddBusiness" Variant="GfVariant.Tertiary">
+    <div class="grid gap-3 sm:grid-cols-2">
+        <div>
+            <GfLabel For="org-code" Required="true">Kode</GfLabel>
+            <input id="org-code" class="form-control" placeholder="ZRES" @bind="_newCode" />
+        </div>
+        <div>
+            <GfLabel For="org-name" Required="true">Nama</GfLabel>
+            <input id="org-name" class="form-control" placeholder="Z Resource" @bind="_newName" />
+        </div>
+    </div>
+
+    <GfText Typo="Typo.subtitle2" Class="mt-3" GutterBottom="true">Site awal</GfText>
+    @foreach (var row in _newSites)
+    {
+        <div @key="row" class="mb-2 grid gap-2 sm:grid-cols-[8rem_1fr_1fr_auto]">
+            <input class="form-control" placeholder="Kode" aria-label="Kode site" @bind="row.Code" />
+            <input class="form-control" placeholder="Nama" aria-label="Nama site" @bind="row.Name" />
+            <input class="form-control" placeholder="Lokasi" aria-label="Lokasi site" @bind="row.Location" />
+            <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.Delete"
+                      OnClick="() => RemoveNewSite(row)">Hapus</GfButton>
+        </div>
+    }
+    <div class="mt-3 flex flex-wrap items-center gap-3">
+        <GfButton Appearance="GfAppearance.Outlined" StartIcon="@Icons.Material.Filled.Add" OnClick="AddNewSiteRow">Tambah baris site</GfButton>
+        <GfButton StartIcon="@Icons.Material.Filled.Save" Disabled="_busy" OnClick="CreateTenantAsync">Buat organisasi</GfButton>
+    </div>
+</GfCard>
+
+@if (!_loaded)
+{
+    <GfText Muted="true">Memuat organisasi...</GfText>
+}
+else
+{
+    @foreach (var tenant in _tenants)
+    {
+        var siteForm = SiteFormFor(tenant.Id);
+        var adminForm = AdminFormFor(tenant.Id);
+        <GfCard @key="tenant.Id" Title="@($"{tenant.Name} ({tenant.Code})")" Icon="@Icons.Material.Filled.Domain"
+                Variant="@(tenant.IsActive ? GfVariant.Primary : GfVariant.Secondary)">
+            <HeaderActions>
+                @if (tenant.IsActive)
+                {
+                    <GfChip Icon="@Icons.Material.Filled.CheckCircle">Aktif</GfChip>
+                }
+                else
+                {
+                    <GfChip Variant="GfVariant.Tertiary" Appearance="GfAppearance.Outlined">Nonaktif</GfChip>
+                }
+                <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" Disabled="_busy"
+                          OnClick="() => SetActiveAsync(tenant, !tenant.IsActive)">@(tenant.IsActive ? "Nonaktifkan" : "Aktifkan")</GfButton>
+            </HeaderActions>
+            <ChildContent>
+                <GfText Typo="Typo.caption" Muted="true" GutterBottom="true">
+                    Admin: @(tenant.AdminEmails.Count == 0 ? "belum ada" : string.Join(", ", tenant.AdminEmails))
+                </GfText>
+
+                <table class="table table-sm mb-3 text-xs">
+                    <thead>
+                        <tr><th>Kode</th><th>Nama</th><th>Lokasi</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var site in tenant.Sites)
+                        {
+                            <tr @key="site.Id">
+                                <td>@site.Code</td>
+                                <td>@site.Name</td>
+                                <td>@site.Location</td>
+                                <td>@(site.IsActive ? "Aktif" : "Nonaktif")</td>
+                            </tr>
+                        }
+                        @if (tenant.Sites.Count == 0)
+                        {
+                            <tr><td colspan="4" class="text-muted">Belum ada site.</td></tr>
+                        }
+                    </tbody>
+                </table>
+
+                <div class="grid gap-2 sm:grid-cols-[8rem_1fr_1fr_auto]">
+                    <input class="form-control" placeholder="Kode" aria-label="Kode site baru" @bind="siteForm.Code" />
+                    <input class="form-control" placeholder="Nama" aria-label="Nama site baru" @bind="siteForm.Name" />
+                    <input class="form-control" placeholder="Lokasi" aria-label="Lokasi site baru" @bind="siteForm.Location" />
+                    <GfButton Size="GfSize.Sm" StartIcon="@Icons.Material.Filled.Add" Disabled="_busy"
+                              OnClick="() => AddSiteAsync(tenant.Id)">Tambah site</GfButton>
+                </div>
+
+                <div class="mt-3 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+                    <input type="email" class="form-control" placeholder="Email Admin" aria-label="Email Admin" @bind="adminForm.Email" />
+                    <input type="password" class="form-control" autocomplete="new-password"
+                           placeholder="Kata sandi awal (hanya untuk akun baru)" aria-label="Kata sandi awal" @bind="adminForm.Password" />
+                    <GfButton Size="GfSize.Sm" Variant="GfVariant.Secondary" StartIcon="@Icons.Material.Filled.AdminPanelSettings"
+                              Disabled="_busy" OnClick="() => AssignAdminAsync(tenant.Id)">Tetapkan Admin</GfButton>
+                </div>
+            </ChildContent>
+        </GfCard>
+    }
+}
+
+@code {
+    private IReadOnlyList<TenantSummary> _tenants = [];
+    private readonly List<SiteRow> _newSites = [new()];
+    private readonly Dictionary<int, SiteRow> _siteForms = new();
+    private readonly Dictionary<int, AdminRow> _adminForms = new();
+    private string _newCode = "";
+    private string _newName = "";
+    private bool _loaded;
+    private bool _busy;
+    private string? _error;
+    private string? _notice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await RunAsync(LoadAsync, notice: null);
+        _loaded = true;
+    }
+
+    private async Task LoadAsync() => _tenants = await Organizations.GetTenantsAsync(CancellationToken.None);
+
+    private void AddNewSiteRow() => _newSites.Add(new SiteRow());
+
+    private void RemoveNewSite(SiteRow row) => _newSites.Remove(row);
+
+    private SiteRow SiteFormFor(int tenantId) =>
+        _siteForms.TryGetValue(tenantId, out var form) ? form : _siteForms[tenantId] = new SiteRow();
+
+    private AdminRow AdminFormFor(int tenantId) =>
+        _adminForms.TryGetValue(tenantId, out var form) ? form : _adminForms[tenantId] = new AdminRow();
+
+    private Task CreateTenantAsync() => RunAsync(async () =>
+    {
+        var sites = _newSites
+            .Where(s => !string.IsNullOrWhiteSpace(s.Code) || !string.IsNullOrWhiteSpace(s.Name))
+            .Select(s => s.ToInput())
+            .ToList();
+        await Organizations.CreateTenantAsync(new NewTenant(_newCode, _newName, sites), CancellationToken.None);
+        _newCode = "";
+        _newName = "";
+        _newSites.Clear();
+        _newSites.Add(new SiteRow());
+        await LoadAsync();
+    }, "Organisasi dibuat.");
+
+    private Task SetActiveAsync(TenantSummary tenant, bool isActive) => RunAsync(async () =>
+    {
+        await Organizations.SetTenantActiveAsync(tenant.Id, isActive, CancellationToken.None);
+        await LoadAsync();
+    }, isActive ? $"{tenant.Name} diaktifkan." : $"{tenant.Name} dinonaktifkan.");
+
+    private Task AddSiteAsync(int tenantId) => RunAsync(async () =>
+    {
+        await Organizations.AddSiteAsync(tenantId, SiteFormFor(tenantId).ToInput(), CancellationToken.None);
+        _siteForms.Remove(tenantId);
+        await LoadAsync();
+    }, "Site ditambahkan.");
+
+    private async Task AssignAdminAsync(int tenantId)
+    {
+        AccountAssignment? result = null;
+        await RunAsync(async () =>
+        {
+            var form = AdminFormFor(tenantId);
+            result = await Organizations.AssignTenantAdminAsync(tenantId, form.Email, form.Password, CancellationToken.None);
+            _adminForms.Remove(tenantId);
+            await LoadAsync();
+        }, notice: null);
+
+        if (result is not null)
+            _notice = result.Created
+                ? $"Akun {result.Email} dibuat dan dijadikan Admin. Pengguna wajib mengganti kata sandi awal saat login pertama."
+                : $"{result.Email} dijadikan Admin. Kata sandi akun yang sudah ada tidak diubah.";
+    }
+
+    // Semua operasi berurutan: satu DbContext per circuit tidak boleh dipakai bersamaan
+    private async Task RunAsync(Func<Task> action, string? notice)
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        _notice = null;
+        try
+        {
+            await action();
+            _notice = notice;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Operasi halaman Organisasi gagal");
+            _error = "Operasi gagal. Coba lagi.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private sealed class SiteRow
+    {
+        public string Code { get; set; } = "";
+        public string Name { get; set; } = "";
+        public string? Location { get; set; }
+
+        public SiteInput ToInput() => new(Code, Name, Location);
+    }
+
+    private sealed class AdminRow
+    {
+        public string Email { get; set; } = "";
+        public string? Password { get; set; }
+    }
+}

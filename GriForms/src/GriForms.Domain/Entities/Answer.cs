@@ -16,4 +16,6 @@ public class Answer
     public string? UpdatedBy { get; set; }
     public DateTime UpdatedAt { get; set; }
     public int RowVersion { get; set; }
+
+    public Submission Submission { get; set; } = null!;   // dipakai filter tenant; tenant mengikuti submission
 }

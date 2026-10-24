@@ -3,7 +3,15 @@
     <Found Context="routeData">
         <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(Layout.MainLayout)">
             <NotAuthorized>
-                <RedirectToLogin />
+                @* Sudah login tapi tidak memenuhi policy (mis. PlatformAdmin): AccessDenied, bukan kembali ke Login *@
+                @if (context.User.Identity?.IsAuthenticated == true)
+                {
+                    <RedirectToAccessDenied />
+                }
+                else
+                {
+                    <RedirectToLogin />
+                }
             </NotAuthorized>
         </AuthorizeRouteView>
         <FocusOnNavigate RouteData="routeData" Selector="h1" />

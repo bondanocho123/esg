@@ -2,9 +2,10 @@ using GriForms.Domain.Enums;
 
 namespace GriForms.Domain.Entities;
 
-public class Submission
+public class Submission : ITenantOwned
 {
     public int Id { get; set; }
+    public int TenantId { get; set; }   // wajib sama dengan tenant Site dan Period
     public int SiteId { get; set; }
     public int PeriodId { get; set; }
     public int TopicId { get; set; }
