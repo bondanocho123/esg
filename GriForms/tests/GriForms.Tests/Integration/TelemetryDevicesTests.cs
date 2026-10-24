@@ -15,7 +15,7 @@ public class TelemetryDevicesTests : IDisposable
     private async Task<string> RegisterAsync(TelemetryAccess access, string code, string name = "Sensor", int siteId = 1)
     {
         await using var ctx = _db.CreateContext();
-        return await new TelemetryDevices(ctx, ctx).RegisterAsync(access, code, name, siteId, CancellationToken.None);
+        return await new TelemetryDevices(ctx, ctx, _db.ActiveTenant).RegisterAsync(access, code, name, siteId, CancellationToken.None);
     }
 
     [Fact]

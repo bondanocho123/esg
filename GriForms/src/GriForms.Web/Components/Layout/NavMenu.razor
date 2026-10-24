@@ -1,4 +1,40 @@
+@using GriForms.Application.Abstractions
+
+@inject ITenantSession Session
+
 <nav class="flex min-h-full flex-col gap-0.5 py-3">
+    <p class="mx-5 mt-0 mb-1 text-[10px] font-semibold tracking-wider text-forest-icon/70 uppercase">Menu</p>
+    @if (Session.Current.UserId is not null && Session.Current.TenantId is null)
+    {
+        @* Tanpa organisasi aktif tidak ada menu data tenant; PlatformAdmin hanya melihat menu Platform di bawah *@
+        @if (!Session.Current.IsPlatformAdmin)
+        {
+            <GfNavLink Href="tanpa-organisasi" Icon="@Icons.Material.Filled.Info">Organisasi</GfNavLink>
+        }
+    }
+    else
+    {
+        <GfNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</GfNavLink>
+        <GfNavLink Href="counter" Icon="@Icons.Material.Filled.AddBox">Counter</GfNavLink>
+        <GfNavLink Href="weather" Icon="@Icons.Material.Filled.FormatListBulleted">Weather</GfNavLink>
+        <GfNavLink Href="auth" Icon="@Icons.Material.Filled.Lock">Auth Required</GfNavLink>
+        <GfNavLink Href="ui-kit" Icon="@Icons.Material.Filled.Palette">UI Kit</GfNavLink>
+        @if (Session.Current.TenantId is not null)
+        {
+            <GfNavLink Href="telemetry" Icon="@Icons.Material.Filled.Thermostat">Telemetry</GfNavLink>
+        }
+        @if (Session.Current.IsTenantAdmin)
+        {
+            <GfNavLink Href="pengaturan-organisasi" Icon="@Icons.Material.Filled.Settings">Pengaturan Organisasi</GfNavLink>
+        }
+    }
+
+    @if (Session.Current.IsPlatformAdmin)
+    {
+        <p class="mx-5 mt-4 mb-1 text-[10px] font-semibold tracking-wider text-forest-icon/70 uppercase">Platform</p>
+        <GfNavLink Href="organisasi" Icon="@Icons.Material.Filled.Domain">Organisasi</GfNavLink>
+        <GfNavLink Href="definisi-form" Icon="@Icons.Material.Filled.Description">Definisi form</GfNavLink>
+    }
     <AuthorizeView>
         <GfNavLink Href="telemetry" Icon="@Icons.Material.Filled.Thermostat">Telemetry</GfNavLink>
     </AuthorizeView>
@@ -9,7 +45,7 @@
             <GfNavLink Href="Account/Manage" Icon="@Icons.Material.Filled.Person">@context.User.Identity?.Name</GfNavLink>
         </Authorized>
         <NotAuthorized>
-            <GfNavLink Href="Account/Register" Icon="@Icons.Material.Filled.PersonAdd">Register</GfNavLink>
+            @* Pendaftaran mandiri dimatikan: akun dibuat oleh admin *@
             <GfNavLink Href="Account/Login" Icon="@Icons.Material.Filled.Login">Login</GfNavLink>
         </NotAuthorized>
     </AuthorizeView>

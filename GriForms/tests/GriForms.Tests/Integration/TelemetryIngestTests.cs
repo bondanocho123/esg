@@ -29,7 +29,7 @@ public class TelemetryIngestTests : IDisposable
     private async Task<IngestResult> IngestAsync(string key, TelemetryPayload payload)
     {
         await using var ctx = _db.CreateContext();
-        var ingest = new TelemetryIngest(ctx, ctx, _notifier, _db.Clock, NullLogger<TelemetryIngest>.Instance);
+        var ingest = new TelemetryIngest(ctx, _notifier, _db.Clock, NullLogger<TelemetryIngest>.Instance);
         return await ingest.IngestAsync(key, payload, CancellationToken.None);
     }
 

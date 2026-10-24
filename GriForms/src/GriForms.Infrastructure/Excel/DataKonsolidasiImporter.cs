@@ -1,3 +1,4 @@
+using System.Globalization;
 using ClosedXML.Excel;
 using GriForms.Application.Abstractions;
 using GriForms.Application.Imports;
@@ -18,7 +19,7 @@ public sealed class DataKonsolidasiImporter : IExcelImporter
         {
             var number = r.Cell(10).TryGetValue<decimal>(out var n) ? n : (decimal?)null;
             yield return new LegacyRow(
-                SiteId: r.Cell(1).TryGetValue<int>(out var sid) ? sid : null,
+                SiteCode: SiteCodeOf(r.Cell(1)),
                 NoQz:   r.Cell(7).GetString().Trim(),
                 Qz:     r.Cell(8).GetString().Trim(),
                 Period: NullIfEmpty(r.Cell(9).GetString()),
@@ -27,6 +28,12 @@ public sealed class DataKonsolidasiImporter : IExcelImporter
                 Unit:   NullIfEmpty(r.Cell(12).GetString()));
         }
     }
+
+    // Kolom A dibaca sebagai teks: angka 1 di file lama menjadi "1", sama dengan Site.Code site Z Resource
+    private static string? SiteCodeOf(IXLCell cell) =>
+        cell.Value.IsNumber
+            ? cell.Value.GetNumber().ToString(CultureInfo.InvariantCulture)
+            : NullIfEmpty(cell.GetString());
 
     private static string? NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

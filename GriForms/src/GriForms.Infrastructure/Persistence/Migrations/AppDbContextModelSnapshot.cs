@@ -94,11 +94,16 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.Property<string>("OldValue")
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("TenantId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("AuditEntries");
                 });
@@ -123,10 +128,15 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.Property<int>("PeriodId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("TenantId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("TopicId")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("ConsolidationSnapshots");
                 });
@@ -165,6 +175,19 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.HasIndex("TopicId");
 
                     b.ToTable("FormVersions");
+                });
+
+            modelBuilder.Entity("GriForms.Domain.Entities.PlatformAdmin", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("GrantedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("UserId");
+
+                    b.ToTable("PlatformAdmins");
                 });
 
             modelBuilder.Entity("GriForms.Domain.Entities.QuestionMapping", b =>
@@ -207,12 +230,15 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("TenantId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("Year")
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("Year")
+                    b.HasIndex("TenantId", "Year")
                         .IsUnique();
 
                     b.ToTable("ReportingPeriods");
@@ -257,6 +283,10 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsActive")
                         .HasColumnType("INTEGER");
 
@@ -267,7 +297,13 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("TenantId")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "Code")
+                        .IsUnique();
 
                     b.ToTable("Sites");
 
@@ -275,38 +311,50 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                         new
                         {
                             Id = 1,
+                            Code = "1",
                             IsActive = true,
-                            Name = "Head Office"
+                            Name = "Head Office",
+                            TenantId = 1
                         },
                         new
                         {
                             Id = 2,
+                            Code = "2",
                             IsActive = true,
-                            Name = "Bakan Mine"
+                            Name = "Bakan Mine",
+                            TenantId = 1
                         },
                         new
                         {
                             Id = 3,
+                            Code = "3",
                             IsActive = true,
-                            Name = "Penjom Mine"
+                            Name = "Penjom Mine",
+                            TenantId = 1
                         },
                         new
                         {
                             Id = 4,
+                            Code = "4",
                             IsActive = true,
-                            Name = "Seruyung Mine"
+                            Name = "Seruyung Mine",
+                            TenantId = 1
                         },
                         new
                         {
                             Id = 5,
+                            Code = "5",
                             IsActive = true,
-                            Name = "North Lanut Mine"
+                            Name = "North Lanut Mine",
+                            TenantId = 1
                         },
                         new
                         {
                             Id = 6,
+                            Code = "6",
                             IsActive = true,
-                            Name = "Doup Mine"
+                            Name = "Doup Mine",
+                            TenantId = 1
                         });
                 });
 
@@ -332,6 +380,9 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("TenantId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<int>("TopicId")
                         .HasColumnType("INTEGER");
 
@@ -340,6 +391,8 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.HasIndex("FormVersionId");
 
                     b.HasIndex("PeriodId");
+
+                    b.HasIndex("TenantId");
 
                     b.HasIndex("TopicId");
 
@@ -376,9 +429,17 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.Property<int>("SiteId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("TenantId")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ApiKeyHash")
+                        .IsUnique();
+
+                    b.HasIndex("SiteId");
+
+                    b.HasIndex("TenantId", "Code")
                         .IsUnique();
 
                     b.HasIndex("Code")
@@ -422,6 +483,40 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.ToTable("TelemetryReadings");
                 });
 
+            modelBuilder.Entity("GriForms.Domain.Entities.Tenant", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Tenants");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            Code = "ZRES",
+                            IsActive = true,
+                            Name = "Z Resource"
+                        });
+                });
+
             modelBuilder.Entity("GriForms.Domain.Entities.Topic", b =>
                 {
                     b.Property<int>("Id")
@@ -448,6 +543,27 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.ToTable("Topics");
                 });
 
+            modelBuilder.Entity("GriForms.Domain.Entities.UserProfile", b =>
+                {
+                    b.Property<string>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int?>("ActiveTenantId")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("UserId");
+
+                    b.HasIndex("ActiveTenantId");
+
+                    b.ToTable("UserProfiles");
+                });
+
             modelBuilder.Entity("GriForms.Domain.Entities.UserSiteRole", b =>
                 {
                     b.Property<int>("Id")
@@ -460,6 +576,9 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.Property<int?>("SiteId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("TenantId")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("UserId")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -468,15 +587,37 @@ namespace GriForms.Infrastructure.Persistence.Migrations
 
                     b.HasIndex("SiteId");
 
+                    b.HasIndex("TenantId");
+
                     b.ToTable("UserSiteRoles");
                 });
 
             modelBuilder.Entity("GriForms.Domain.Entities.Answer", b =>
                 {
-                    b.HasOne("GriForms.Domain.Entities.Submission", null)
+                    b.HasOne("GriForms.Domain.Entities.Submission", "Submission")
                         .WithMany("Answers")
                         .HasForeignKey("SubmissionId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Submission");
+                });
+
+            modelBuilder.Entity("GriForms.Domain.Entities.AuditEntry", b =>
+                {
+                    b.HasOne("GriForms.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("GriForms.Domain.Entities.ConsolidationSnapshot", b =>
+                {
+                    b.HasOne("GriForms.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -491,12 +632,32 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.Navigation("Topic");
                 });
 
+            modelBuilder.Entity("GriForms.Domain.Entities.ReportingPeriod", b =>
+                {
+                    b.HasOne("GriForms.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("GriForms.Domain.Entities.Signoff", b =>
                 {
-                    b.HasOne("GriForms.Domain.Entities.Submission", null)
+                    b.HasOne("GriForms.Domain.Entities.Submission", "Submission")
                         .WithMany("Signoffs")
                         .HasForeignKey("SubmissionId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Submission");
+                });
+
+            modelBuilder.Entity("GriForms.Domain.Entities.Site", b =>
+                {
+                    b.HasOne("GriForms.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
@@ -518,6 +679,12 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                         .WithMany()
                         .HasForeignKey("SiteId")
                         .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("GriForms.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("GriForms.Domain.Entities.Topic", "Topic")
@@ -543,6 +710,12 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("GriForms.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.Navigation("Site");
                 });
 
@@ -557,11 +730,24 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.Navigation("Device");
                 });
 
+            modelBuilder.Entity("GriForms.Domain.Entities.UserProfile", b =>
+                {
+                    b.HasOne("GriForms.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("ActiveTenantId");
+                });
+
             modelBuilder.Entity("GriForms.Domain.Entities.UserSiteRole", b =>
                 {
                     b.HasOne("GriForms.Domain.Entities.Site", "Site")
                         .WithMany()
                         .HasForeignKey("SiteId");
+
+                    b.HasOne("GriForms.Domain.Entities.Tenant", null)
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
 
                     b.Navigation("Site");
                 });

@@ -29,6 +29,7 @@
 
         <AuthorizeView>
             <Authorized>
+                <TenantSwitcher />
                 <a href="Account/Manage" title="Kelola akun"
                    class="flex items-center gap-2 rounded-full py-0.5 pr-2.5 pl-0.5 text-xs font-medium text-white no-underline transition hover:bg-white/10 hover:text-white hover:no-underline">
                     <GfAvatar Name="@context.User.Identity?.Name" Src="@context.User.FindFirst("picture")?.Value" />

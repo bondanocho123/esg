@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 namespace GriForms.Infrastructure.Consolidation;
 
 // Hanya data Approved. Tidak ada Sum() di query karena SQLite menyimpan decimal sebagai TEXT.
+// Submission, jawaban, dan site dibatasi ke tenant aktif oleh filter tenant di AppDbContext.
 public sealed class ConsolidationQuery(IAppReadDb db) : IConsolidationQuery
 {
     public async Task<ConsolidationResult> BuildAsync(int topicId, int year, CancellationToken ct)

@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace GriForms.Infrastructure.Submissions;
 
 // Hanya menyimpan sel. Audit ditangani AuditInterceptor, kenaikan RowVersion oleh RowVersionInterceptor.
+// Submission tenant lain tidak terlihat (filter tenant di AppDbContext), jadi dianggap tidak ditemukan.
 public sealed class AnswerWriter(
     IAppReadDb db, IUnitOfWork uow, IFormDefinitionReader reader, ICurrentUser user, IClock clock) : IAnswerWriter
 {

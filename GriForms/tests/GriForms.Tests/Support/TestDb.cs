@@ -1,3 +1,4 @@
+using GriForms.Application.Abstractions;
 using GriForms.Domain.Entities;
 using GriForms.Domain.Enums;
 using GriForms.Infrastructure.Persistence;
@@ -16,16 +17,24 @@ public sealed class TestDb : IDisposable
         _connection = new SqliteConnection("DataSource=:memory:");
         _connection.Open();
         using var db = CreateContext();
-        db.Database.EnsureCreated();   // seed 6 site ikut dibuat lewat HasData
+        db.Database.EnsureCreated();   // seed tenant 1 dan 6 site-nya ikut dibuat lewat HasData
     }
 
     public FakeUser User { get; } = new("user-1");
     public FixedClock Clock { get; } = new(new DateTime(2026, 10, 22, 0, 0, 0, DateTimeKind.Utc));
 
-    public AppDbContext CreateContext() => new(new DbContextOptionsBuilder<AppDbContext>()
+    // Tenant aktif tes; default tenant 1 (Z Resource) agar tes lama tetap melihat data seed
+    public FakeTenant ActiveTenant { get; } = new(Tenant.LegacyId);
+
+    public AppDbContext CreateContext() => CreateContext(ActiveTenant);
+
+    public AppDbContext CreateContext(ITenantContext tenant) => new(new DbContextOptionsBuilder<AppDbContext>()
         .UseSqlite(_connection)
-        .AddInterceptors(new RowVersionInterceptor(), new AuditInterceptor(User, Clock))
-        .Options);
+        .AddInterceptors(new RowVersionInterceptor(), new AuditInterceptor(User, Clock, tenant))
+        .Options, tenant);
+
+    // Konteks dengan tenant aktif lain, untuk menyiapkan atau memeriksa data tenant itu
+    public AppDbContext CreateContext(int tenantId) => CreateContext(new FakeTenant(tenantId));
 
     // Data minimal: satu topik, satu periode, satu versi form terbit
     public (int TopicId, int PeriodId, int FormVersionId) SeedTopic(int year = 2026, PeriodStatus status = PeriodStatus.Open)
