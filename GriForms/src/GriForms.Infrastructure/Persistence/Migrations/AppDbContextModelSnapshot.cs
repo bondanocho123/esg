@@ -442,6 +442,11 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.HasIndex("TenantId", "Code")
                         .IsUnique();
 
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.HasIndex("SiteId");
+
                     b.ToTable("TelemetryDevices");
                 });
 

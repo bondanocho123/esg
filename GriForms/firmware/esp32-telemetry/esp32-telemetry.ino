@@ -1,4 +1,4 @@
-// ESP32 + DHT11: kirim suhu dan kelembapan ke GriForms (POST /api/telemetry) tiap 60 detik.
+// ESP32 + DHT11: kirim suhu dan kelembapan ke GriForms (POST /api/telemetry) tiap 5 detik.
 //
 // Library (Arduino Library Manager): "DHT sensor library" (Adafruit) dan "ArduinoJson" v7.
 // Salin secrets.example.h menjadi secrets.h lalu isi WiFi, URL server, dan API key dari halaman /telemetry.
@@ -18,7 +18,7 @@
 #define DHT_PIN 4
 #define DHT_TYPE DHT11
 
-const unsigned long SEND_INTERVAL_MS = 60UL * 1000;
+const unsigned long SEND_INTERVAL_MS = 5UL * 1000;   // server membatasi 20 request/menit per device
 const unsigned long WIFI_TIMEOUT_MS = 15UL * 1000;
 const time_t MIN_VALID_EPOCH = 1700000000;   // jam di bawah ini berarti NTP belum sinkron
 

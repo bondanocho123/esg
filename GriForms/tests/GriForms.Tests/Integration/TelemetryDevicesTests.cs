@@ -1,6 +1,8 @@
+using GriForms.Application.Abstractions;
 using GriForms.Application.Telemetry;
 using GriForms.Infrastructure.Telemetry;
 using GriForms.Tests.Support;
+using Microsoft.EntityFrameworkCore;
 
 namespace GriForms.Tests.Integration;
 
@@ -66,6 +68,24 @@ public class TelemetryDevicesTests : IDisposable
 
         using var db = _db.CreateContext();
         Assert.Single(db.TelemetryDevices);
+    }
+
+    [Fact]
+    public async Task Save_failure_other_than_duplicate_is_not_reported_as_duplicate_code()
+    {
+        await using var ctx = _db.CreateContext();
+        var devices = new TelemetryDevices(ctx, new FailingUnitOfWork(ctx));
+
+        await Assert.ThrowsAsync<DbUpdateException>(() =>
+            devices.RegisterAsync(Admin, "esp32-ho-01", "Sensor", 1, CancellationToken.None));
+    }
+
+    // Meniru SQLite 'database is locked': simpan gagal tanpa ada baris dengan kode yang sama
+    private sealed class FailingUnitOfWork(IUnitOfWork inner) : IUnitOfWork
+    {
+        public void Add<T>(T entity) where T : class => inner.Add(entity);
+        public void Remove<T>(T entity) where T : class => inner.Remove(entity);
+        public Task<int> SaveChangesAsync(CancellationToken ct) => throw new DbUpdateException("database is locked");
     }
 
     [Fact]

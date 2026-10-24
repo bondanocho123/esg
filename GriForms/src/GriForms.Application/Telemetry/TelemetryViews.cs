@@ -14,7 +14,7 @@ public sealed record DeviceSnapshot(
     int DeviceId, string Code, string Name, int SiteId, string SiteName,
     bool IsActive, DateTime? LastSeenAt, IReadOnlyList<LatestReading> Latest)
 {
-    // Device dianggap offline bila tidak mengirim lebih dari 3 menit (normalnya tiap 60 detik)
+    // Device dianggap offline bila tidak mengirim lebih dari 3 menit (normalnya tiap 5 detik)
     public static readonly TimeSpan OfflineAfter = TimeSpan.FromMinutes(3);
 
     public bool IsOnline(DateTime utcNow) => LastSeenAt is { } seen && utcNow - seen <= OfflineAfter;

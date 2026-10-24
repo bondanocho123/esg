@@ -66,7 +66,7 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
-// Telemetry: batasi tiap device (dikenali dari X-Device-Key) 10 request per menit
+// Telemetry: batasi tiap device (dikenali dari X-Device-Key) 20 request per menit; firmware mengirim tiap 5 detik (12/menit)
 builder.Services.AddRateLimiter(options =>
 {
     // Header kosong atau tidak masuk akal panjangnya dipartisi per IP, bukan per nilai mentah:
@@ -79,7 +79,7 @@ builder.Services.AddRateLimiter(options =>
             : $"ip:{http.Connection.RemoteIpAddress}";
         return RateLimitPartition.GetFixedWindowLimiter(
             partition,
-            _ => new FixedWindowRateLimiterOptions { PermitLimit = 10, Window = TimeSpan.FromMinutes(1) });
+            _ => new FixedWindowRateLimiterOptions { PermitLimit = 20, Window = TimeSpan.FromMinutes(1) });
     });
     // Respons berisi body agar tidak di-re-execute oleh UseStatusCodePagesWithReExecute
     options.OnRejected = (ctx, _) => new ValueTask(
