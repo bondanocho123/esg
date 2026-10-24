@@ -74,7 +74,7 @@ public class TelemetryDevicesTests : IDisposable
     public async Task Save_failure_other_than_duplicate_is_not_reported_as_duplicate_code()
     {
         await using var ctx = _db.CreateContext();
-        var devices = new TelemetryDevices(ctx, new FailingUnitOfWork(ctx));
+        var devices = new TelemetryDevices(ctx, new FailingUnitOfWork(ctx), _db.ActiveTenant);
 
         await Assert.ThrowsAsync<DbUpdateException>(() =>
             devices.RegisterAsync(Admin, "esp32-ho-01", "Sensor", 1, CancellationToken.None));
