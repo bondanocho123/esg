@@ -139,6 +139,23 @@ public sealed class OrganizationAdmin(
         return entity.Id;
     }
 
+    public async Task SetSiteActiveAsync(int siteId, bool isActive, CancellationToken ct)
+    {
+        var actor = await EnsurePlatformAdminAsync(ct);
+        // IgnoreQueryFilters: PlatformAdmin mengubah site di tenant yang bukan tenant aktifnya
+        var site = await db.Sites.IgnoreQueryFilters().FirstOrDefaultAsync(s => s.Id == siteId, ct)
+            ?? throw new InvalidOperationException($"Site {siteId} tidak ditemukan.");
+        if (site.IsActive == isActive) return;
+
+        site.IsActive = isActive;
+        db.AuditEntries.Add(Audit(site.TenantId, nameof(Site), site.Id.ToString(), isActive ? "Activated" : "Deactivated",
+            (!isActive).ToString(), isActive.ToString(), actor, clock.UtcNow));
+        await SaveAsync(ct);
+
+        using (Scope(site.TenantId, actor))
+            logger.LogInformation("Site {SiteCode} {Status}", site.Code, isActive ? "diaktifkan" : "dinonaktifkan");
+    }
+
     public async Task<AccountAssignment> AssignTenantAdminAsync(int tenantId, string email, string? initialPassword, CancellationToken ct)
     {
         var actor = await EnsurePlatformAdminAsync(ct);

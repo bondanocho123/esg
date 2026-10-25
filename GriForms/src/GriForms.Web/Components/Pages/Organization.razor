@@ -85,21 +85,25 @@ else
 
                 <table class="table table-sm mb-3 text-xs">
                     <thead>
-                        <tr><th>Kode</th><th>Nama</th><th>Lokasi</th><th>Status</th></tr>
+                        <tr><th>Kode</th><th>Nama</th><th>Lokasi</th><th>Status</th><th></th></tr>
                     </thead>
                     <tbody>
                         @foreach (var site in tenant.Sites)
                         {
-                            <tr @key="site.Id">
+                            <tr @key="site.Id" class="@(site.IsActive ? null : "text-muted")">
                                 <td>@site.Code</td>
                                 <td>@site.Name</td>
                                 <td>@site.Location</td>
                                 <td>@(site.IsActive ? "Aktif" : "Nonaktif")</td>
+                                <td class="text-end">
+                                    <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" Disabled="_busy"
+                                              OnClick="() => SetSiteActiveAsync(site, !site.IsActive)">@(site.IsActive ? "Nonaktifkan" : "Aktifkan")</GfButton>
+                                </td>
                             </tr>
                         }
                         @if (tenant.Sites.Count == 0)
                         {
-                            <tr><td colspan="4" class="text-muted">Belum ada site.</td></tr>
+                            <tr><td colspan="5" class="text-muted">Belum ada site.</td></tr>
                         }
                     </tbody>
                 </table>
@@ -180,6 +184,12 @@ else
         _siteForms.Remove(tenantId);
         await LoadAsync();
     }, "Site ditambahkan.");
+
+    private Task SetSiteActiveAsync(SiteView site, bool isActive) => RunAsync(async () =>
+    {
+        await Organizations.SetSiteActiveAsync(site.Id, isActive, CancellationToken.None);
+        await LoadAsync();
+    }, isActive ? $"Site {site.Name} diaktifkan." : $"Site {site.Name} dinonaktifkan.");
 
     private async Task AssignAdminAsync(int tenantId)
     {
