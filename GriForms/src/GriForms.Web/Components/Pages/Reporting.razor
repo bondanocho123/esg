@@ -10,6 +10,7 @@
 @attribute [Authorize]
 
 @inject IReportingWorkspace Workspace
+@inject ITenantSession Session
 @inject NavigationManager Navigation
 @inject ILogger<Reporting> Logger
 
@@ -48,6 +49,32 @@ else if (_view is { } view)
                     }
                 </select>
             </div>
+            @if (ShowSiteFilter)
+            {
+                <div>
+                    <GfLabel For="site-filter">Site</GfLabel>
+                    <select id="site-filter" class="form-select" value="@(_siteId?.ToString() ?? "")" @onchange="OnSiteChanged">
+                        <option value="">Semua site</option>
+                        @foreach (var site in SiteOptions)
+                        {
+                            <option value="@site.Id">@site.Code · @site.Name</option>
+                        }
+                    </select>
+                </div>
+            }
+            @if (ShowCategoryFilter)
+            {
+                <div>
+                    <GfLabel For="category-filter">Kategori</GfLabel>
+                    <select id="category-filter" class="form-select" value="@(_category ?? "")" @onchange="OnCategoryChanged">
+                        <option value="">Semua kategori</option>
+                        @foreach (var category in CategoryOptions)
+                        {
+                            <option value="@category">@category</option>
+                        }
+                    </select>
+                </div>
+            }
             <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Filter tindakan">
                 @foreach (var filter in Filters)
                 {
@@ -71,7 +98,7 @@ else if (_view is { } view)
                 <GfText Typo="Typo.body2" Muted="true">
                     @(view.Rows.Count == 0
                         ? "Belum ada form terbit yang berlaku untuk periode ini, atau Anda belum punya peran di site mana pun."
-                        : "Tidak ada form yang perlu tindakan Anda untuk filter ini.")
+                        : "Tidak ada form untuk filter ini.")
                 </GfText>
             </GfCard>
         }
@@ -128,6 +155,8 @@ else if (_view is { } view)
 
     private WorkspaceView? _view;
     private string _filter = "semua";
+    private int? _siteId;        // null = semua site
+    private string? _category;   // null = semua kategori
     private bool _loaded;
     private bool _busy;
     private string? _error;
@@ -156,10 +185,31 @@ else if (_view is { } view)
         };
     }
 
+    // Admin melihat semua site, jadi perlu memilih site; peran per site memilah berdasarkan kategori topik
+    private bool ShowSiteFilter => Session.Current.Has(RoleName.Admin);
+
+    private bool ShowCategoryFilter =>
+        Session.Current.Has(RoleName.Contributor) || Session.Current.Has(RoleName.Reviewer) || Session.Current.Has(RoleName.Approver);
+
+    // Baris dari layanan sudah urut kode site lalu kode topik
+    private IEnumerable<(int Id, string Code, string Name)> SiteOptions =>
+        (_view?.Rows ?? []).Select(r => (r.SiteId, r.SiteCode, r.SiteName)).Distinct();
+
+    private IEnumerable<string> CategoryOptions =>
+        (_view?.Rows ?? []).Select(r => r.TopicCategory.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Order(CodeComparer.Instance);
+
+    private IEnumerable<WorkspaceRow> Scoped =>
+        (_view?.Rows ?? []).Where(r =>
+            (_siteId is null || r.SiteId == _siteId)
+            && (_category is null || string.Equals(r.TopicCategory.Trim(), _category, StringComparison.OrdinalIgnoreCase)));
+
+    // Jumlah di tombol tindakan ikut menghormati filter site dan kategori
     private IEnumerable<WorkspaceRow> RowsFor(string key)
     {
         var actions = AllFilters.First(f => f.Key == key).Actions;
-        return actions.Length == 0 ? _view?.Rows ?? [] : (_view?.Rows ?? []).Where(r => actions.Contains(r.Next));
+        return actions.Length == 0 ? Scoped : Scoped.Where(r => actions.Contains(r.Next));
     }
 
     private IEnumerable<WorkspaceRow> Visible => RowsFor(_filter);
@@ -178,6 +228,9 @@ else if (_view is { } view)
         try
         {
             _view = await Workspace.GetAsync(periodId, CancellationToken.None);
+            // Pilihan yang tidak ada di periode lain dikembalikan ke "semua"
+            if (_siteId is { } site && !_view.Rows.Any(r => r.SiteId == site)) _siteId = null;
+            if (_category is { } category && !CategoryOptions.Contains(category, StringComparer.OrdinalIgnoreCase)) _category = null;
         }
         catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
         {
@@ -193,6 +246,12 @@ else if (_view is { } view)
 
     private Task OnPeriodChanged(ChangeEventArgs e) =>
         int.TryParse(e.Value?.ToString(), out var id) ? LoadAsync(id) : Task.CompletedTask;
+
+    private void OnSiteChanged(ChangeEventArgs e) =>
+        _siteId = int.TryParse(e.Value?.ToString(), out var id) ? id : null;
+
+    private void OnCategoryChanged(ChangeEventArgs e) =>
+        _category = string.IsNullOrEmpty(e.Value?.ToString()) ? null : e.Value!.ToString();
 
     private void SetFilter(string key) =>
         Navigation.NavigateTo(key == "semua" ? "pelaporan" : $"pelaporan/{key}");

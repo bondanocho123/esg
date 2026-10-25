@@ -92,6 +92,28 @@ public class ReportingWorkspaceTests : IDisposable
     }
 
     [Fact]
+    public async Task Rows_are_ordered_by_site_code_then_topic_code_as_numbers()
+    {
+        using (var db = _db.CreateContext())
+        {
+            db.Add(new Site { Code = "10", Name = "Pelabuhan" });
+            var energi = new Topic { Code = "302", Category = "Env", Name = "Energi" };
+            var bio = new Topic { Code = "1001", Category = "Env", Name = "Keanekaragaman hayati" };
+            db.AddRange(energi, bio);
+            db.AddRange(
+                new FormVersion { Topic = bio, VersionNo = 1, EffectiveFromYear = 2025, DefinitionJson = SampleDefinitions.Topic403, IsPublished = true },
+                new FormVersion { Topic = energi, VersionNo = 1, EffectiveFromYear = 2025, DefinitionJson = SampleDefinitions.Topic403, IsPublished = true });
+            db.SaveChanges();
+        }
+
+        WorkspaceView view = null!;
+        await AsAsync("admin", async w => view = await w.GetAsync(null, CancellationToken.None));
+
+        Assert.Equal(new[] { "1", "2", "3", "4", "5", "6", "10" }, view.Rows.Select(r => r.SiteCode).Distinct());
+        Assert.Equal(new[] { "302", "403", "1001" }, view.Rows.Where(r => r.SiteCode == "1").Select(r => r.TopicCode));
+    }
+
+    [Fact]
     public async Task Only_site_contributor_can_start_and_others_reuse_existing_submission()
     {
         await Assert.ThrowsAsync<InvalidOperationException>(() =>

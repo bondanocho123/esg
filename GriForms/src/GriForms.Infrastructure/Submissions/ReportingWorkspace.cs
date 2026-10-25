@@ -27,8 +27,10 @@ public sealed class ReportingWorkspace(
             : periods.FirstOrDefault(p => p.Status == PeriodStatus.Open) ?? periods.FirstOrDefault();
         if (period is null) return new WorkspaceView(periods, null, []);
 
-        var sites = await db.Sites.AsNoTracking().Where(s => s.IsActive).OrderBy(s => s.Code).ToListAsync(ct);
-        sites = sites.Where(s => roles.For(s.Id).Count > 0).ToList();
+        var sites = (await db.Sites.AsNoTracking().Where(s => s.IsActive).ToListAsync(ct))
+            .Where(s => roles.For(s.Id).Count > 0)
+            .OrderBy(s => s.Code, CodeComparer.Instance)
+            .ToList();
 
         // Versi terbit yang berlaku untuk tahun periode, satu per topik (aturan FormVersionResolver)
         var year = period.Year;
@@ -47,7 +49,9 @@ public sealed class ReportingWorkspace(
 
         // Topik tanpa versi berlaku tetap tampil bila sudah ada submission (mis. versinya dipensiunkan kemudian)
         var topicIds = current.Keys.Union(submissions.Select(s => s.TopicId)).ToHashSet();
-        var topics = await db.Topics.AsNoTracking().Where(t => topicIds.Contains(t.Id)).OrderBy(t => t.Code).ToListAsync(ct);
+        var topics = (await db.Topics.AsNoTracking().Where(t => topicIds.Contains(t.Id)).ToListAsync(ct))
+            .OrderBy(t => t.Code, CodeComparer.Instance)
+            .ToList();
 
         var rows = new List<WorkspaceRow>();
         foreach (var site in sites)
