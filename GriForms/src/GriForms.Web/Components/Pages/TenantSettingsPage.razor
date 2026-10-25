@@ -127,6 +127,7 @@ else
                         <p class="m-0 mb-2">
                             Kata sandi sementara untuk @member.Email. Sampaikan ke pengguna secara langsung;
                             pengguna wajib menggantinya saat login berikutnya dan sesi login lainnya berakhir.
+                            Minimal 6 karakter dengan huruf besar, huruf kecil, angka, dan simbol (mis. Sementara-123!).
                         </p>
                         <div class="flex flex-wrap items-center gap-2">
                             <input type="password" class="form-control h-7 w-64 text-xs" autocomplete="new-password"
@@ -135,6 +136,17 @@ else
                                       OnClick="ResetPasswordAsync">Simpan kata sandi</GfButton>
                             <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" OnClick="() => _reset = null">Batal</GfButton>
                         </div>
+                        @* Pesan juga tampil di dekat form: alert di atas halaman tidak terlihat saat daftar pengguna panjang *@
+                        @if (reset.Error is not null)
+                        {
+                            <p class="m-0 mt-2 font-semibold text-danger" role="alert">@reset.Error</p>
+                        }
+                    </div>
+                }
+                else if (_resetDoneFor == member.UserId)
+                {
+                    <div class="alert alert-success mt-2" role="status">
+                        Kata sandi diatur ulang. Pengguna wajib menggantinya saat login berikutnya.
                     </div>
                 }
                 <div class="mt-2 flex flex-wrap items-center gap-2">
@@ -166,6 +178,7 @@ else
     private IReadOnlyList<MemberView> _members = [];
     private readonly Dictionary<string, RoleForm> _grantForms = new();
     private ResetForm? _reset;
+    private string? _resetDoneFor;
     private SiteForm _newSite = new();
     private MemberForm _newMember = new();
     private SiteForm? _editing;
@@ -235,14 +248,23 @@ else
         await LoadAsync();
     }, "Peran diberikan.");
 
-    private void StartReset(MemberView member) => _reset = new ResetForm { UserId = member.UserId, Email = member.Email };
+    private void StartReset(MemberView member)
+    {
+        _reset = new ResetForm { UserId = member.UserId, Email = member.Email };
+        _resetDoneFor = null;
+    }
 
-    private Task ResetPasswordAsync() => RunAsync(async () =>
+    private async Task ResetPasswordAsync()
     {
         if (_reset is not { } reset) return;
-        await Settings.ResetPasswordAsync(reset.UserId, reset.Password, CancellationToken.None);
-        _reset = null;
-    }, $"Kata sandi {_reset?.Email} diatur ulang. Pengguna wajib menggantinya saat login berikutnya.");
+        await RunAsync(async () =>
+        {
+            await Settings.ResetPasswordAsync(reset.UserId, reset.Password, CancellationToken.None);
+            _reset = null;
+            _resetDoneFor = reset.UserId;
+        }, $"Kata sandi {reset.Email} diatur ulang. Pengguna wajib menggantinya saat login berikutnya.");
+        reset.Error = _error;
+    }
 
     private Task RevokeAsync(int roleId) => RunAsync(async () =>
     {
@@ -299,6 +321,7 @@ else
         public string UserId { get; init; } = "";
         public string Email { get; init; } = "";
         public string Password { get; set; } = "";
+        public string? Error { get; set; }
     }
 
     private sealed class MemberForm : RoleForm
