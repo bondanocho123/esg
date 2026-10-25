@@ -1,0 +1,142 @@
+@page "/periode-pelaporan"
+
+@using Microsoft.AspNetCore.Authorization
+@using GriForms.Application.Abstractions
+@using GriForms.Application.Submissions
+@using GriForms.Domain.Enums
+@using GriForms.Web.Services
+
+@attribute [Authorize(Policy = TenancyPolicies.TenantAdmin)]
+
+@inject IReportingPeriods Periods
+@inject IClock Clock
+@inject ILogger<ReportingPeriodsPage> Logger
+
+<PageTitle>Periode pelaporan</PageTitle>
+
+<GfHeader Title="Periode pelaporan"
+          Subtitle="Form hanya bisa diisi pada periode terbuka. Periode yang ditutup membuat semua form periode itu hanya bisa dibaca."
+          Icon="@Icons.Material.Filled.Event" />
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger" role="alert">@_error</div>
+}
+@if (_notice is not null)
+{
+    <div class="alert alert-success" role="status">@_notice</div>
+}
+
+<GfCard Title="Buka periode baru" Icon="@Icons.Material.Filled.EventAvailable" Variant="GfVariant.Tertiary">
+    <div class="flex flex-wrap items-end gap-3">
+        <div>
+            <GfLabel For="year" Required="true">Tahun</GfLabel>
+            <input id="year" type="number" class="form-control w-32" min="2000" max="2100" @bind="_year" />
+        </div>
+        <GfButton StartIcon="@Icons.Material.Filled.Add" Disabled="_busy" OnClick="CreateAsync">Buka periode</GfButton>
+    </div>
+</GfCard>
+
+@if (!_loaded)
+{
+    <GfText Muted="true">Memuat periode...</GfText>
+}
+else
+{
+    <GfCard Title="Daftar periode" Icon="@Icons.Material.Filled.Event">
+        <table class="table text-xs">
+            <thead>
+                <tr><th>Tahun</th><th>Status</th><th>Submission</th><th></th></tr>
+            </thead>
+            <tbody>
+                @foreach (var p in _periods)
+                {
+                    <tr @key="p.Id">
+                        <td>@p.Year</td>
+                        <td>
+                            @if (p.Status == PeriodStatus.Open)
+                            {
+                                <GfChip Icon="@Icons.Material.Filled.LockOpen">Terbuka</GfChip>
+                            }
+                            else
+                            {
+                                <GfChip Variant="GfVariant.Tertiary" Appearance="GfAppearance.Outlined" Icon="@Icons.Material.Filled.Lock">Ditutup</GfChip>
+                            }
+                        </td>
+                        <td>@p.SubmissionCount</td>
+                        <td class="text-end">
+                            <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" Disabled="_busy"
+                                      StartIcon="@(p.Status == PeriodStatus.Open ? Icons.Material.Filled.Lock : Icons.Material.Filled.LockOpen)"
+                                      OnClick="() => ToggleAsync(p)">@(p.Status == PeriodStatus.Open ? "Tutup" : "Buka kembali")</GfButton>
+                        </td>
+                    </tr>
+                }
+                @if (_periods.Count == 0)
+                {
+                    <tr><td colspan="4" class="text-muted">Belum ada periode.</td></tr>
+                }
+            </tbody>
+        </table>
+    </GfCard>
+}
+
+@code {
+    private IReadOnlyList<ReportingPeriodView> _periods = [];
+    private int _year;
+    private bool _loaded;
+    private bool _busy;
+    private string? _error;
+    private string? _notice;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _year = Clock.UtcNow.Year;
+        await RunAsync(LoadAsync, notice: null);
+        _loaded = true;
+    }
+
+    private async Task LoadAsync() => _periods = await Periods.GetPeriodsAsync(CancellationToken.None);
+
+    private Task CreateAsync() => RunAsync(async () =>
+    {
+        await Periods.CreatePeriodAsync(_year, CancellationToken.None);
+        await LoadAsync();
+    }, $"Periode {_year} dibuka.");
+
+    private Task ToggleAsync(ReportingPeriodView period)
+    {
+        var to = period.Status == PeriodStatus.Open ? PeriodStatus.Closed : PeriodStatus.Open;
+        return RunAsync(async () =>
+        {
+            await Periods.SetStatusAsync(period.Id, to, CancellationToken.None);
+            await LoadAsync();
+        }, to == PeriodStatus.Closed ? $"Periode {period.Year} ditutup." : $"Periode {period.Year} dibuka kembali.");
+    }
+
+    // Semua operasi berurutan: satu DbContext per circuit tidak boleh dipakai bersamaan
+    private async Task RunAsync(Func<Task> action, string? notice)
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        _notice = null;
+        try
+        {
+            await action();
+            _notice = notice;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Operasi halaman Periode pelaporan gagal");
+            _error = "Operasi gagal. Coba lagi.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

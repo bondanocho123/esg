@@ -1,0 +1,36 @@
+@* Status submission; null berarti form belum dimulai *@
+@switch (Status)
+{
+    case null:
+        <GfChip Variant="GfVariant.Tertiary" Appearance="GfAppearance.Outlined">Belum dimulai</GfChip>
+        break;
+    case SubmissionStatus.Draft:
+        <GfChip Variant="GfVariant.Tertiary" Icon="@Icons.Material.Filled.Edit">Draft</GfChip>
+        break;
+    case SubmissionStatus.Submitted:
+        <GfChip Variant="GfVariant.Secondary" Icon="@Icons.Material.Filled.Send">Diajukan</GfChip>
+        break;
+    case SubmissionStatus.Reviewed:
+        <GfChip Variant="GfVariant.Secondary" Icon="@Icons.Material.Filled.FactCheck">Ditinjau</GfChip>
+        break;
+    case SubmissionStatus.Approved:
+        <GfChip Icon="@Icons.Material.Filled.Verified">Disetujui</GfChip>
+        break;
+    case SubmissionStatus.Rejected:
+        <GfChip Variant="GfVariant.Tertiary" Appearance="GfAppearance.Outlined" Icon="@Icons.Material.Filled.Undo">Ditolak</GfChip>
+        break;
+}
+
+@code {
+    [Parameter] public SubmissionStatus? Status { get; set; }
+
+    public static string Label(SubmissionStatus status) => status switch
+    {
+        SubmissionStatus.Draft => "Draft",
+        SubmissionStatus.Submitted => "Diajukan",
+        SubmissionStatus.Reviewed => "Ditinjau",
+        SubmissionStatus.Approved => "Disetujui",
+        SubmissionStatus.Rejected => "Ditolak",
+        _ => status.ToString(),
+    };
+}

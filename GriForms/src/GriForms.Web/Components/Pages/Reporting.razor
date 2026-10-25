@@ -1,0 +1,253 @@
+@page "/pelaporan"
+@page "/pelaporan/{Tindakan}"
+
+@using Microsoft.AspNetCore.Authorization
+@using GriForms.Application.Abstractions
+@using GriForms.Application.Submissions
+@using GriForms.Domain.Enums
+@using GriForms.Web.Components.Forms
+
+@attribute [Authorize]
+
+@inject IReportingWorkspace Workspace
+@inject NavigationManager Navigation
+@inject ILogger<Reporting> Logger
+
+<PageTitle>Form pelaporan</PageTitle>
+
+<GfHeader Title="Form pelaporan"
+          Subtitle="Form GRI per site untuk periode pelaporan. Yang tampil hanya site tempat Anda punya peran."
+          Icon="@Icons.Material.Filled.Assignment" />
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger" role="alert">@_error</div>
+}
+
+@if (!_loaded)
+{
+    <GfText Muted="true">Memuat form pelaporan...</GfText>
+}
+else if (_view is { } view)
+{
+    @if (view.Period is null)
+    {
+        <GfCard Title="Belum ada periode pelaporan" Icon="@Icons.Material.Filled.EventBusy" Variant="GfVariant.Tertiary">
+            <GfText Typo="Typo.body2" Muted="true">Admin organisasi perlu membuat periode pelaporan lebih dulu.</GfText>
+        </GfCard>
+    }
+    else
+    {
+        <div class="mb-3 flex flex-wrap items-end gap-3">
+            <div>
+                <GfLabel For="period">Periode</GfLabel>
+                <select id="period" class="form-select" value="@view.Period.Id" @onchange="OnPeriodChanged">
+                    @foreach (var p in view.Periods)
+                    {
+                        <option value="@p.Id">@p.Year@(p.Status == PeriodStatus.Closed ? " (ditutup)" : "")</option>
+                    }
+                </select>
+            </div>
+            <div class="flex flex-wrap items-center gap-2" role="group" aria-label="Filter tindakan">
+                @foreach (var filter in Filters)
+                {
+                    <GfButton @key="filter.Key" Size="GfSize.Sm"
+                              Appearance="@(_filter == filter.Key ? GfAppearance.Filled : GfAppearance.Outlined)"
+                              aria-pressed="@(_filter == filter.Key ? "true" : "false")"
+                              OnClick="() => SetFilter(filter.Key)">@filter.Label (@Count(filter.Key))</GfButton>
+                }
+            </div>
+        </div>
+
+        @if (view.Period.Status == PeriodStatus.Closed)
+        {
+            <div class="alert alert-info" role="status">Periode @view.Period.Year sudah ditutup. Semua form hanya bisa dibaca.</div>
+        }
+
+        var rows = Visible.ToList();
+        @if (rows.Count == 0)
+        {
+            <GfCard Title="Tidak ada form" Icon="@Icons.Material.Filled.Inbox" Variant="GfVariant.Tertiary">
+                <GfText Typo="Typo.body2" Muted="true">
+                    @(view.Rows.Count == 0
+                        ? "Belum ada form terbit yang berlaku untuk periode ini, atau Anda belum punya peran di site mana pun."
+                        : "Tidak ada form yang perlu tindakan Anda untuk filter ini.")
+                </GfText>
+            </GfCard>
+        }
+
+        @foreach (var site in rows.GroupBy(r => (r.SiteId, r.SiteCode, r.SiteName)))
+        {
+            <GfCard @key="site.Key.SiteId" Title="@($"{site.Key.SiteName} ({site.Key.SiteCode})")" Icon="@Icons.Material.Filled.Place">
+                <HeaderActions>
+                    @foreach (var role in site.First().Roles)
+                    {
+                        <GfChip Variant="GfVariant.Secondary" Appearance="GfAppearance.Outlined">@RoleLabel(role)</GfChip>
+                    }
+                </HeaderActions>
+                <ChildContent>
+                    <div class="overflow-x-auto">
+                        <table class="table text-xs">
+                            <thead>
+                                <tr><th>Topik</th><th>Kategori</th><th>Versi</th><th>Status</th><th></th></tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var row in site)
+                                {
+                                    <tr @key="row.TopicId">
+                                        <td>@row.TopicCode @row.TopicName</td>
+                                        <td>@row.TopicCategory</td>
+                                        <td>v@(row.VersionNo)</td>
+                                        <td><SubmissionStatusChip Status="row.Status" /></td>
+                                        <td class="text-end whitespace-nowrap">
+                                            @if (row.Next != NextAction.None)
+                                            {
+                                                <GfButton Size="GfSize.Sm" StartIcon="@ActionIcon(row.Next)" Disabled="_busy"
+                                                          OnClick="() => OpenAsync(row)">@ActionLabel(row.Next)</GfButton>
+                                            }
+                                            else if (row.SubmissionId is not null)
+                                            {
+                                                <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.Visibility"
+                                                          Href="@($"pelaporan/{row.SubmissionId}")">Lihat</GfButton>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </ChildContent>
+            </GfCard>
+        }
+    }
+}
+
+@code {
+    // /pelaporan/isi|tinjau|setujui dari menu; /pelaporan: semua form. /pelaporan/{id:int} adalah SubmissionPage.
+    [Parameter] public string? Tindakan { get; set; }
+
+    private WorkspaceView? _view;
+    private string _filter = "semua";
+    private bool _loaded;
+    private bool _busy;
+    private string? _error;
+
+    private static readonly (string Key, string Label, NextAction[] Actions)[] AllFilters =
+    [
+        ("semua", "Semua", []),
+        ("isi", "Perlu diisi", [NextAction.Start, NextAction.Fill]),
+        ("tinjau", "Perlu ditinjau", [NextAction.Review]),
+        ("setujui", "Perlu disetujui", [NextAction.Approve]),
+    ];
+
+    // Filter tindakan hanya muncul bila pengguna punya peran yang bisa melakukannya
+    private IEnumerable<(string Key, string Label, NextAction[] Actions)> Filters =>
+        AllFilters.Where(f => f.Key == "semua" || f.Key == _filter || Count(f.Key) > 0 || HasRoleFor(f.Key));
+
+    private bool HasRoleFor(string key)
+    {
+        var roles = _view?.Rows.SelectMany(r => r.Roles).ToHashSet() ?? [];
+        return key switch
+        {
+            "isi" => roles.Contains(RoleName.Contributor),
+            "tinjau" => roles.Contains(RoleName.Reviewer),
+            "setujui" => roles.Contains(RoleName.Approver),
+            _ => false,
+        };
+    }
+
+    private IEnumerable<WorkspaceRow> RowsFor(string key)
+    {
+        var actions = AllFilters.First(f => f.Key == key).Actions;
+        return actions.Length == 0 ? _view?.Rows ?? [] : (_view?.Rows ?? []).Where(r => actions.Contains(r.Next));
+    }
+
+    private IEnumerable<WorkspaceRow> Visible => RowsFor(_filter);
+
+    private int Count(string key) => RowsFor(key).Count();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _filter = AllFilters.Any(f => f.Key == Tindakan) ? Tindakan! : "semua";
+        if (_view is null) await LoadAsync(periodId: null);
+    }
+
+    private async Task LoadAsync(int? periodId)
+    {
+        _error = null;
+        try
+        {
+            _view = await Workspace.GetAsync(periodId, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Gagal memuat form pelaporan");
+            _error = "Gagal memuat form pelaporan.";
+        }
+        _loaded = true;
+    }
+
+    private Task OnPeriodChanged(ChangeEventArgs e) =>
+        int.TryParse(e.Value?.ToString(), out var id) ? LoadAsync(id) : Task.CompletedTask;
+
+    private void SetFilter(string key) =>
+        Navigation.NavigateTo(key == "semua" ? "pelaporan" : $"pelaporan/{key}");
+
+    // Membuat submission bila belum ada (hanya Contributor), lalu membuka halaman pengisian
+    private async Task OpenAsync(WorkspaceRow row)
+    {
+        if (_busy || _view?.Period is not { } period) return;
+        _busy = true;
+        _error = null;
+        try
+        {
+            var id = row.SubmissionId ?? await Workspace.OpenAsync(row.SiteId, period.Id, row.TopicId, CancellationToken.None);
+            Navigation.NavigateTo($"pelaporan/{id}");
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Gagal membuka form {TopicId} site {SiteId}", row.TopicId, row.SiteId);
+            _error = "Gagal membuka form. Coba lagi.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string ActionLabel(NextAction action) => action switch
+    {
+        NextAction.Start => "Mulai isi",
+        NextAction.Fill => "Lanjutkan isi",
+        NextAction.Review => "Tinjau",
+        NextAction.Approve => "Setujui",
+        _ => "Lihat",
+    };
+
+    private static string ActionIcon(NextAction action) => action switch
+    {
+        NextAction.Start => Icons.Material.Filled.PlayArrow,
+        NextAction.Fill => Icons.Material.Filled.Edit,
+        NextAction.Review => Icons.Material.Filled.FactCheck,
+        NextAction.Approve => Icons.Material.Filled.Verified,
+        _ => Icons.Material.Filled.Visibility,
+    };
+
+    public static string RoleLabel(RoleName role) => role switch
+    {
+        RoleName.Contributor => "Contributor",
+        RoleName.Reviewer => "Reviewer",
+        RoleName.Approver => "Approver",
+        RoleName.Admin => "Admin",
+        RoleName.ReportViewer => "Report viewer",
+        _ => role.ToString(),
+    };
+}
