@@ -110,24 +110,27 @@ else
                                         }
                                         else
                                         {
-                                            <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.OpenInNew"
-                                                      Href="@($"definisi-form/{v.Id}")">@(v.Status == FormVersionStatus.Draft ? "Edit" : "Lihat")</GfButton>
-                                            @if (v.Status == FormVersionStatus.Draft)
-                                            {
-                                                <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.Delete"
-                                                          Disabled="@(_busy || v.SubmissionCount > 0 || v.MappingCount > 0)"
-                                                          OnClick="() => _confirm = new(ConfirmKind.Delete, v.Id)">Hapus</GfButton>
-                                            }
-                                            else
-                                            {
-                                                <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.ContentCopy"
-                                                          Disabled="_busy" OnClick="() => CreateDraftAsync(topic.Id, v.Id)">Salin jadi Draft</GfButton>
-                                            }
-                                            @if (v.Status == FormVersionStatus.Published)
-                                            {
-                                                <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.Inventory2"
-                                                          Disabled="_busy" OnClick="() => _confirm = new(ConfirmKind.Retire, v.Id)">Pensiunkan</GfButton>
-                                            }
+                                            @* Tiga slot lebar tetap (lihat/edit, salin/hapus, pensiunkan) agar tombol sejajar antar baris *@
+                                            <div class="inline-grid grid-cols-[5.5rem_9.5rem_7.5rem] justify-items-start">
+                                                <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.OpenInNew"
+                                                          Href="@($"definisi-form/{v.Id}")">@(v.Status == FormVersionStatus.Draft ? "Edit" : "Lihat")</GfButton>
+                                                @if (v.Status == FormVersionStatus.Draft)
+                                                {
+                                                    <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.Delete"
+                                                              Disabled="@(_busy || v.SubmissionCount > 0 || v.MappingCount > 0)"
+                                                              OnClick="() => _confirm = new(ConfirmKind.Delete, v.Id)">Hapus</GfButton>
+                                                }
+                                                else
+                                                {
+                                                    <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.ContentCopy"
+                                                              Disabled="_busy" OnClick="() => CreateDraftAsync(topic.Id, v.Id)">Salin jadi Draft</GfButton>
+                                                }
+                                                @if (v.Status == FormVersionStatus.Published)
+                                                {
+                                                    <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.Inventory2"
+                                                              Disabled="_busy" OnClick="() => _confirm = new(ConfirmKind.Retire, v.Id)">Pensiunkan</GfButton>
+                                                }
+                                            </div>
                                         }
                                     </td>
                                 </tr>
