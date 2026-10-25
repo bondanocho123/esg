@@ -147,6 +147,13 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("DefinitionJson")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -160,6 +167,18 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                     b.Property<bool>("IsPublished")
                         .HasColumnType("INTEGER");
 
+                    b.Property<DateTime?>("PublishedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PublishedBy")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("RetiredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RetiredBy")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("StandardRef")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -172,7 +191,8 @@ namespace GriForms.Infrastructure.Persistence.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TopicId");
+                    b.HasIndex("TopicId", "VersionNo")
+                        .IsUnique();
 
                     b.ToTable("FormVersions");
                 });

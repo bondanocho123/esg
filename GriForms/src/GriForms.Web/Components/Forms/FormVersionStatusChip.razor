@@ -1,0 +1,17 @@
+@* Status siklus versi form: Draft, Terbit, Pensiun *@
+@switch (Status)
+{
+    case FormVersionStatus.Published:
+        <GfChip Icon="@Icons.Material.Filled.CheckCircle">Terbit</GfChip>
+        break;
+    case FormVersionStatus.Retired:
+        <GfChip Variant="GfVariant.Secondary" Icon="@Icons.Material.Filled.Inventory2">Pensiun</GfChip>
+        break;
+    default:
+        <GfChip Variant="GfVariant.Tertiary" Appearance="GfAppearance.Outlined" Icon="@Icons.Material.Filled.Edit">Draft</GfChip>
+        break;
+}
+
+@code {
+    [Parameter, EditorRequired] public FormVersionStatus Status { get; set; }
+}

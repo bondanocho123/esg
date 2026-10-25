@@ -1,7 +1,6 @@
 using GriForms.Application.Tenancy;
 using GriForms.Domain.Entities;
 using GriForms.Domain.Enums;
-using GriForms.Infrastructure.Forms;
 using GriForms.Infrastructure.Persistence;
 using GriForms.Infrastructure.Tenancy;
 using GriForms.Tests.Support;
@@ -116,9 +115,9 @@ public class OrganizationAdminTests : IDisposable
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             organizations.AddSiteAsync(A, new SiteInput("9", "X", null), CancellationToken.None));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            new FormCatalog(ctx, new FakeUser("admin-a")).GetVersionsAsync(CancellationToken.None));
+            FormCatalogTests.Create(ctx, "admin-a", _accounts, _db.Clock).GetVersionsAsync(CancellationToken.None));
 
-        Assert.Empty(await new FormCatalog(ctx, new FakeUser("platform")).GetVersionsAsync(CancellationToken.None));
+        Assert.Empty(await FormCatalogTests.Create(ctx, "platform", _accounts, _db.Clock).GetVersionsAsync(CancellationToken.None));
     }
 
     [Fact]

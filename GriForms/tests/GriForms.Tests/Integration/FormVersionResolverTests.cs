@@ -21,14 +21,16 @@ public class FormVersionResolverTests : IDisposable
             Version(1, from: 2025, to: 2025, published: true),
             Version(2, from: 2026, to: null, published: true),
             Version(3, from: 2026, to: null, published: false),   // draft, tidak boleh terpilih
-            Version(4, from: 2028, to: null, published: true));
+            Version(4, from: 2028, to: null, published: true),
+            Version(5, from: 2027, to: 2027, published: true, retired: true));   // retired, tidak boleh terpilih
         db.SaveChanges();
     }
 
-    private FormVersion Version(int no, int from, int? to, bool published) => new()
+    private FormVersion Version(int no, int from, int? to, bool published, bool retired = false) => new()
     {
         TopicId = _topicId, VersionNo = no, StandardRef = "GRI 403",
         EffectiveFromYear = from, EffectiveToYear = to, IsPublished = published,
+        RetiredAt = retired ? new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc) : null,
         DefinitionJson = SampleDefinitions.Topic403,
     };
 

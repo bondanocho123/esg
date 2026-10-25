@@ -14,6 +14,7 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddSingleton<IFormDefinitionReader, JsonFormDefinitionReader>();
+        services.AddSingleton<FormDefinitionValidator>();
         services.AddScoped<FormContext>();
         services.AddScoped<IFormContext>(sp => sp.GetRequiredService<FormContext>());
 
