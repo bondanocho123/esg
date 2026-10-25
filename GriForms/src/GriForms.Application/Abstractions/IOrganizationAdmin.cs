@@ -14,6 +14,9 @@ public interface IOrganizationAdmin
 
     Task<int> AddSiteAsync(int tenantId, SiteInput site, CancellationToken ct);
 
+    // Site nonaktif tetap disimpan beserta datanya, tetapi tidak dipakai di konsolidasi, telemetry, atau pilihan peran
+    Task SetSiteActiveAsync(int siteId, bool isActive, CancellationToken ct);
+
     // Email belum terdaftar: akun dibuat dengan initialPassword dan wajib ganti kata sandi.
     // Email sudah terdaftar: hanya peran Admin tenant yang ditambahkan, kata sandi tidak disentuh.
     Task<AccountAssignment> AssignTenantAdminAsync(int tenantId, string email, string? initialPassword, CancellationToken ct);
