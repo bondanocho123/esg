@@ -216,11 +216,13 @@ public class OrganizationAdminTests : IDisposable
         var settings = Settings("admin-a", A, out var ctx);
         await using var _ = ctx;
         _accounts.FailDelete = true;
+        // Request dibatalkan tepat setelah akun dibuat: simpanan peran gagal setelah akun dan profil terlanjur ada.
+        // Membatalkan sebelum memanggil tidak menguji apa pun, karena pemeriksaan hak Admin sudah berhenti lebih dulu.
         using var cancelled = new CancellationTokenSource();
-        cancelled.Cancel();   // simpanan peran gagal setelah akun dan profil terlanjur dibuat
+        _accounts.AfterCreate = cancelled.Cancel;
 
         await Assert.ThrowsAnyAsync<Exception>(() =>
-            settings.AddMemberAsync("baru@jre.com", "Awal-12345!", RoleName.Reviewer, null, cancelled.Token));
+            settings.AddMemberAsync("baru@jre.com", "Awal-12345!", RoleName.Reviewer, siteId: 1, cancelled.Token));
 
         using var check = _db.CreateContext(new FakeTenant(null));
         var profile = Assert.Single(check.UserProfiles.Where(p => p.UserId == "u-baru@jre.com"));
@@ -233,10 +235,10 @@ public class OrganizationAdminTests : IDisposable
         var settings = Settings("admin-a", A, out var ctx);
         await using var _ = ctx;
         using var cancelled = new CancellationTokenSource();
-        cancelled.Cancel();
+        _accounts.AfterCreate = cancelled.Cancel;   // simpanan peran gagal setelah akun dibuat
 
-        await Assert.ThrowsAnyAsync<Exception>(() =>
-            settings.AddMemberAsync("baru@jre.com", "Awal-12345!", RoleName.Reviewer, null, cancelled.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            settings.AddMemberAsync("baru@jre.com", "Awal-12345!", RoleName.Reviewer, siteId: 1, cancelled.Token));
 
         Assert.Equal(new[] { "u-baru@jre.com" }, _accounts.Deleted);
         using var check = _db.CreateContext(new FakeTenant(null));

@@ -10,7 +10,7 @@ namespace GriForms.Tests.Forms;
 
 // Tes kontrak Liskov yang dijalankan untuk setiap turunan FieldBase:
 // hormati ReadOnly, tampilkan Errors, dan jangan melempar untuk State kosong.
-public abstract class FieldContractTests<TField> : BunitContext where TField : FieldBase
+public abstract class FieldContractTests<TField> : MudBunitContext where TField : FieldBase
 {
     protected FieldContractTests()
     {

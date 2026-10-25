@@ -29,10 +29,15 @@ public sealed class FakeUserAccounts : IUserAccounts
         return Task.FromResult(_byEmail.GetValueOrDefault(email));
     }
 
+    // Dipanggil setelah akun dibuat, mis. untuk membatalkan request di tengah jalan
+    public Action? AfterCreate { get; set; }
+
     public Task<AccountInfo> CreateAsync(string email, string initialPassword, CancellationToken ct)
     {
         Created.Add((email, initialPassword));
-        return Task.FromResult(Add(email));
+        var account = Add(email);
+        AfterCreate?.Invoke();
+        return Task.FromResult(account);
     }
 
     // Mensimulasikan kompensasi yang gagal menghapus akun

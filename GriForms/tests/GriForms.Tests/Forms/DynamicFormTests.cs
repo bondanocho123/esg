@@ -7,7 +7,7 @@ using MudBlazor.Services;
 
 namespace GriForms.Tests.Forms;
 
-public class DynamicFormTests : BunitContext
+public class DynamicFormTests : MudBunitContext
 {
     private static readonly FormDefinition Definition = new JsonFormDefinitionReader().Read(SampleDefinitions.Topic403);
 
