@@ -22,9 +22,15 @@ public sealed partial class FormDefinitionValidator(IFormDefinitionReader reader
     private const int MaxYear = 2100;
     private static readonly string[] ValueTypes = ["number", "text"];
 
+    // Cara bacaan sensor diringkas per periode form
+    public static readonly string[] Aggregations = ["sum", "avg", "min", "max", "last"];
+
     // Tanpa '/' dan '|': keduanya pemisah kunci sel (FormState.CellKey, kunci baris/kolom tabel)
     [GeneratedRegex(@"^[\w\-.]+$")]
     private static partial Regex KeyPattern();
+
+    [GeneratedRegex(@"^[a-z][a-z0-9_]*$")]
+    private static partial Regex MetricPattern();
 
     public DefinitionCheck Check(string json, string topicCode, int versionNo)
     {
@@ -176,6 +182,96 @@ public sealed partial class FormDefinitionValidator(IFormDefinitionReader reader
 
         if (!string.IsNullOrWhiteSpace(q.CalcRef) && !calcs.Contains(q.CalcRef))
             issues.Add(new($"{path}.calcRef", $"Kalkulasi {q.CalcRef} tidak terdaftar."));
+
+        CheckTelemetry(q, path, issues);
+    }
+
+    // Pertanyaan numerik wajib diklasifikasikan kelayakan telemetry-nya agar rencana otomasi tidak terlupa.
+    // rowsTable dianggap numerik bila punya minimal satu kolom angka; tabel teks murni tidak bisa diotomasi.
+    public static bool NeedsTelemetry(QuestionDef q) => q.Type switch
+    {
+        InputType.Number or InputType.MonthlyTable => true,
+        InputType.RowsTable => (q.Columns ?? []).Any(c => c?.ValueType == "number"),
+        _ => false,
+    };
+
+    private static void CheckTelemetry(QuestionDef q, string path, List<DefinitionIssue> issues)
+    {
+        var tPath = $"{path}.telemetry";
+        var rows = q.Rows ?? [];
+        if (q.Telemetry is null)
+        {
+            if (NeedsTelemetry(q))
+                issues.Add(new(tPath, "Pertanyaan numerik wajib punya telemetry.feasibility: manual, measured, atau derived."));
+        }
+        else
+        {
+            var t = q.Telemetry;
+            if (t.Feasibility is not { } feasibility || !Enum.IsDefined(feasibility))
+                issues.Add(new($"{tPath}.feasibility", "feasibility wajib diisi: manual, measured, atau derived."));
+            else if (feasibility == TelemetryFeasibility.Measured)
+            {
+                // Metrik boleh ditetapkan per baris; kalau tidak ada di pertanyaan, setiap baris tetap wajib punya
+                if (string.IsNullOrWhiteSpace(t.Metric))
+                {
+                    if (q.AllowCustomRows)
+                        issues.Add(new($"{tPath}.metric", "Baris bebas (allowCustomRows) tidak bisa dipetakan ke sensor; tetapkan metric di pertanyaan."));
+                    else if (rows.Count == 0)
+                        issues.Add(new($"{tPath}.metric", "metric wajib diisi untuk feasibility measured."));
+                    else
+                        for (var r = 0; r < rows.Count; r++)
+                            if (IsMeasuredRow(rows[r]) && string.IsNullOrWhiteSpace(rows[r]?.Telemetry?.Metric))
+                                issues.Add(new($"{path}.rows[{r}].telemetry.metric", "metric wajib diisi di pertanyaan atau di setiap baris untuk feasibility measured."));
+                }
+                CheckMeasuredFields(t, tPath, requireMetric: false, issues);
+                // Agregasi pertanyaan boleh kosong hanya bila setiap baris menetapkan sendiri (atau barisnya bukan measured)
+                if (string.IsNullOrWhiteSpace(t.Aggregation) && !(rows.Count > 0 && rows.All(RowHasOwnAggregation)))
+                    issues.Add(new($"{tPath}.aggregation", $"aggregation wajib diisi untuk feasibility measured: {string.Join(", ", Aggregations)}."));
+            }
+            else if (feasibility == TelemetryFeasibility.Derived && string.IsNullOrWhiteSpace(q.CalcRef) && string.IsNullOrWhiteSpace(t.Note))
+                issues.Add(new($"{tPath}.note", "feasibility derived wajib punya calcRef di pertanyaan atau note yang menjelaskan sumbernya."));
+        }
+
+        for (var r = 0; r < rows.Count; r++)
+        {
+            if (rows[r]?.Telemetry is not { } rt) continue;
+            var rPath = $"{path}.rows[{r}].telemetry";
+            if (rt.Feasibility is not { } rf || !Enum.IsDefined(rf))
+                issues.Add(new($"{rPath}.feasibility", "feasibility wajib diisi: manual, measured, atau derived."));
+            else if (rf == TelemetryFeasibility.Measured)
+            {
+                CheckMeasuredFields(rt, rPath, requireMetric: true, issues);
+                if (string.IsNullOrWhiteSpace(rt.Aggregation) && string.IsNullOrWhiteSpace(q.Telemetry?.Aggregation))
+                    issues.Add(new($"{rPath}.aggregation", $"aggregation wajib diisi di baris atau di pertanyaan: {string.Join(", ", Aggregations)}."));
+            }
+            else if (rf == TelemetryFeasibility.Derived && string.IsNullOrWhiteSpace(q.CalcRef) && string.IsNullOrWhiteSpace(rt.Note))
+                issues.Add(new($"{rPath}.note", "feasibility derived wajib punya calcRef di pertanyaan atau note yang menjelaskan sumbernya."));
+        }
+    }
+
+    // Baris tanpa telemetry sendiri mewarisi klasifikasi pertanyaan
+    private static bool IsMeasuredRow(RowDef? row) =>
+        row?.Telemetry?.Feasibility is null or TelemetryFeasibility.Measured;
+
+    private static bool RowHasOwnAggregation(RowDef? row) =>
+        !IsMeasuredRow(row) || !string.IsNullOrWhiteSpace(row?.Telemetry?.Aggregation);
+
+    // Format metric/unit/aggregation; metric belum dicocokkan ke TelemetryMetrics.Known (didaftarkan saat sensor dipasang)
+    private static void CheckMeasuredFields(TelemetryDef t, string path, bool requireMetric, List<DefinitionIssue> issues)
+    {
+        if (string.IsNullOrWhiteSpace(t.Metric))
+        {
+            if (requireMetric) issues.Add(new($"{path}.metric", "metric wajib diisi untuk feasibility measured."));
+        }
+        else
+        {
+            if (!MetricPattern().IsMatch(t.Metric))
+                issues.Add(new($"{path}.metric", $"metric {t.Metric} harus huruf kecil, angka, dan '_' (mis. energy_kwh)."));
+            if (string.IsNullOrWhiteSpace(t.Unit))
+                issues.Add(new($"{path}.unit", "unit wajib diisi bila metric diisi."));
+        }
+        if (!string.IsNullOrWhiteSpace(t.Aggregation) && !Aggregations.Contains(t.Aggregation))
+            issues.Add(new($"{path}.aggregation", $"aggregation harus salah satu dari: {string.Join(", ", Aggregations)}."));
     }
 
     private static void CheckValueType(string? valueType, string path, List<DefinitionIssue> issues)

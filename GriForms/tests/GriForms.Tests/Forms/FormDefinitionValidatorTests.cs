@@ -158,6 +158,103 @@ public class FormDefinitionValidatorTests
     }
 
     [Fact]
+    public void Numeric_questions_must_be_classified_for_telemetry()
+    {
+        AssertIssue(Check(Mutate(r => Question(r, 1, 0).Remove("telemetry"))), "disclosures[1].questions[0].telemetry");
+        AssertIssue(Check(Mutate(r => Question(r, 0, 1).Remove("telemetry"))), "disclosures[0].questions[1].telemetry");
+        AssertIssue(Check(Mutate(r => Question(r, 1, 3).Remove("telemetry"))), "disclosures[1].questions[3].telemetry");
+        AssertIssue(Check(Mutate(r => Question(r, 1, 0)["telemetry"] = new JsonObject())), "disclosures[1].questions[0].telemetry.feasibility");
+    }
+
+    [Fact]
+    public void Text_and_text_only_tables_do_not_need_telemetry()
+    {
+        var check = Check(Mutate(r =>
+        {
+            var table = Question(r, 1, 3);
+            table.Remove("telemetry");
+            table["columns"] = new JsonArray(new JsonObject { ["key"] = "ket", ["label"] = "Keterangan" });
+        }));
+
+        Assert.True(check.IsValid, string.Join("; ", check.Issues.Select(i => $"{i.Path}: {i.Message}")));
+        Assert.Null(check.Definition!.Disclosures[0].Questions[0].Telemetry);   // 403-5-A text tanpa telemetry
+    }
+
+    [Fact]
+    public void Measured_needs_metric_unit_and_known_aggregation()
+    {
+        var bare = Check(Mutate(r => Question(r, 1, 0)["telemetry"] = new JsonObject { ["feasibility"] = "measured" }));
+        AssertIssue(bare, "disclosures[1].questions[0].telemetry.metric");
+        AssertIssue(bare, "disclosures[1].questions[0].telemetry.aggregation");
+
+        var badFormat = Check(Mutate(r => Question(r, 1, 0)["telemetry"] = new JsonObject
+        {
+            ["feasibility"] = "measured", ["metric"] = "Jam-Kerja", ["aggregation"] = "median",
+        }));
+        AssertIssue(badFormat, "disclosures[1].questions[0].telemetry.metric");
+        AssertIssue(badFormat, "disclosures[1].questions[0].telemetry.unit");
+        AssertIssue(badFormat, "disclosures[1].questions[0].telemetry.aggregation");
+
+        Assert.True(Check(Mutate(r => Question(r, 1, 0)["telemetry"] = new JsonObject
+        {
+            ["feasibility"] = "measured", ["metric"] = "hours_worked", ["unit"] = "jam", ["aggregation"] = "sum",
+        })).IsValid);
+    }
+
+    [Fact]
+    public void Measured_metric_may_be_set_per_fixed_row()
+    {
+        var perRow = Mutate(r =>
+        {
+            var q = Question(r, 0, 1);
+            q["telemetry"] = new JsonObject { ["feasibility"] = "measured", ["aggregation"] = "sum" };
+            q["rows"]![0]!["telemetry"] = new JsonObject { ["feasibility"] = "measured", ["metric"] = "diesel_l", ["unit"] = "L" };
+        });
+        Assert.True(Check(perRow).IsValid, string.Join("; ", Check(perRow).Issues.Select(i => $"{i.Path}: {i.Message}")));
+
+        var missingRowMetric = Mutate(r =>
+        {
+            var q = Question(r, 0, 1);
+            q["telemetry"] = new JsonObject { ["feasibility"] = "measured", ["aggregation"] = "sum" };
+            q["rows"] = new JsonArray(
+                new JsonObject { ["key"] = "diesel", ["label"] = "Diesel", ["telemetry"] = new JsonObject { ["feasibility"] = "measured", ["metric"] = "diesel_l", ["unit"] = "L" } },
+                new JsonObject { ["key"] = "pln", ["label"] = "PLN" },
+                new JsonObject { ["key"] = "lain", ["label"] = "Lainnya", ["telemetry"] = new JsonObject { ["feasibility"] = "manual" } });
+        });
+        var check = Check(missingRowMetric);
+        AssertIssue(check, "disclosures[0].questions[1].rows[1].telemetry.metric");
+        Assert.DoesNotContain(check.Issues, i => i.Path.StartsWith("disclosures[0].questions[1].rows[2]"));
+    }
+
+    [Fact]
+    public void Measured_custom_rows_need_question_level_metric()
+    {
+        AssertIssue(Check(Mutate(r =>
+        {
+            var q = Question(r, 0, 1);
+            q["allowCustomRows"] = true;
+            q["telemetry"] = new JsonObject { ["feasibility"] = "measured", ["aggregation"] = "sum" };
+        })), "disclosures[0].questions[1].telemetry.metric");
+    }
+
+    [Fact]
+    public void Derived_needs_calc_ref_or_note()
+    {
+        AssertIssue(Check(Mutate(r => Question(r, 1, 0)["telemetry"] = new JsonObject { ["feasibility"] = "derived" })),
+            "disclosures[1].questions[0].telemetry.note");
+        AssertIssue(Check(Mutate(r => Question(r, 0, 1)["rows"]![0]!["telemetry"] = new JsonObject { ["feasibility"] = "derived" })),
+            "disclosures[0].questions[1].rows[0].telemetry.note");
+
+        Assert.True(Check(Mutate(r => Question(r, 1, 0)["telemetry"] = new JsonObject
+            { ["feasibility"] = "derived", ["note"] = "dari sistem absensi dikali jam shift" })).IsValid);
+        Assert.True(Check(Mutate(r =>
+        {
+            Question(r, 0, 1)["calcRef"] = "row_total_v1";
+            Question(r, 0, 1)["telemetry"] = new JsonObject { ["feasibility"] = "derived" };
+        })).IsValid);
+    }
+
+    [Fact]
     public void Calc_ref_must_be_registered()
     {
         AssertIssue(Check(Mutate(r => Question(r, 0, 1)["calcRef"] = "ghg_total_v9")), "disclosures[0].questions[1].calcRef");

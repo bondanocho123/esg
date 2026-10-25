@@ -133,6 +133,34 @@ else if (_detail is { } detail)
                             </ul>
                         </div>
                     }
+
+                    @if (check.Definition is { } def && TelemetrySummary(def) is { } readiness)
+                    {
+                        <div class="mt-3 rounded-gf border border-line p-3 text-xs" aria-label="Kesiapan telemetry">
+                            <p class="m-0 mb-2 font-semibold">Kesiapan telemetry</p>
+                            <div class="mb-2 flex flex-wrap gap-2">
+                                <GfChip Variant="GfVariant.Secondary" Appearance="GfAppearance.Outlined">Manual: @readiness.Manual</GfChip>
+                                <GfChip Icon="@Icons.Material.Filled.Sensors">Measured: @readiness.Measured.Count</GfChip>
+                                <GfChip Variant="GfVariant.Secondary" Icon="@Icons.Material.Filled.Functions">Derived: @readiness.Derived</GfChip>
+                                @if (readiness.Unclassified > 0)
+                                {
+                                    <GfChip Variant="GfVariant.Tertiary" Icon="@Icons.Material.Filled.HelpOutline">Belum diklasifikasikan: @readiness.Unclassified</GfChip>
+                                }
+                            </div>
+                            @if (readiness.Measured.Count > 0)
+                            {
+                                <table class="table m-0 text-xs">
+                                    <thead><tr><th>Item</th><th>Metrik</th><th>Satuan</th><th>Agregasi</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var m in readiness.Measured)
+                                        {
+                                            <tr><td><code>@m.Key</code></td><td>@m.Metric</td><td>@m.Unit</td><td>@m.Aggregation</td></tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                        </div>
+                    }
                 }
             </ChildContent>
         </GfCard>
@@ -230,6 +258,41 @@ else if (_detail is { } detail)
         await RunAsync(async () => id = await Catalog.CreateDraftAsync(_detail.Summary.TopicId, VersionId, CancellationToken.None), notice: null);
         if (id is { } versionId) Navigation.NavigateTo($"definisi-form/{versionId}");
     }
+
+    // Ringkasan kelayakan telemetry per pertanyaan; baris tanpa telemetry sendiri mewarisi pertanyaannya.
+    // Null bila form tidak punya pertanyaan numerik maupun klasifikasi telemetry.
+    private static TelemetryReadiness? TelemetrySummary(FormDefinition definition)
+    {
+        int manual = 0, derived = 0, unclassified = 0;
+        var measured = new List<MeasuredItem>();
+        foreach (var q in definition.Disclosures.SelectMany(d => d.Questions ?? []))
+        {
+            if (!FormDefinitionValidator.NeedsTelemetry(q) && q.Telemetry is null) continue;
+            var t = q.Telemetry;
+            switch (t?.Feasibility)
+            {
+                case null: unclassified++; break;
+                case TelemetryFeasibility.Manual: manual++; break;
+                case TelemetryFeasibility.Derived: derived++; break;
+                case TelemetryFeasibility.Measured when !string.IsNullOrWhiteSpace(t.Metric):
+                    measured.Add(new(q.Key, t.Metric, t.Unit, t.Aggregation));
+                    break;
+                case TelemetryFeasibility.Measured:
+                    foreach (var row in q.Rows ?? [])
+                        if (row.Telemetry?.Feasibility is null or TelemetryFeasibility.Measured)
+                            measured.Add(new($"{q.Key}/{row.Key}", row.Telemetry?.Metric, row.Telemetry?.Unit ?? t.Unit,
+                                row.Telemetry?.Aggregation ?? t.Aggregation));
+                    break;
+            }
+        }
+        return manual + derived + unclassified + measured.Count == 0
+            ? null
+            : new TelemetryReadiness(manual, derived, unclassified, measured);
+    }
+
+    private sealed record MeasuredItem(string Key, string? Metric, string? Unit, string? Aggregation);
+
+    private sealed record TelemetryReadiness(int Manual, int Derived, int Unclassified, IReadOnlyList<MeasuredItem> Measured);
 
     private static string When(DateTime utc) =>
         utc.ToLocalTime().ToString("d MMM yyyy HH:mm", CultureInfo.GetCultureInfo("id-ID"));
