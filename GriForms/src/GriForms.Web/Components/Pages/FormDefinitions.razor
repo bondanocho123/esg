@@ -58,7 +58,21 @@ else if (_topics.Count == 0)
 }
 else
 {
-    @foreach (var topic in _topics)
+    <div class="mb-3 flex flex-wrap items-center gap-2" role="group" aria-label="Filter kategori">
+        <span class="text-xs font-medium text-muted">Kategori:</span>
+        <GfButton Size="GfSize.Sm" Appearance="@(_category is null ? GfAppearance.Filled : GfAppearance.Outlined)"
+                  aria-pressed="@(_category is null ? "true" : "false")"
+                  OnClick="() => _category = null">Semua (@_topics.Count)</GfButton>
+        @foreach (var (category, count) in Categories)
+        {
+            <GfButton @key="category" Size="GfSize.Sm"
+                      Appearance="@(IsSelected(category) ? GfAppearance.Filled : GfAppearance.Outlined)"
+                      aria-pressed="@(IsSelected(category) ? "true" : "false")"
+                      OnClick="() => _category = category">@category (@count)</GfButton>
+        }
+    </div>
+
+    @foreach (var topic in FilteredTopics)
     {
         var versions = VersionsOf(topic.Id);
         <GfCard @key="topic.Id" Title="@($"{topic.Code} {topic.Name}")" Icon="@Icons.Material.Filled.Description">
@@ -149,6 +163,7 @@ else
 
 @code {
     private IReadOnlyList<TopicView> _topics = [];
+    private string? _category;   // null = semua kategori
     private IReadOnlyList<FormVersionSummary> _versions = [];
     private readonly TopicRow _newTopic = new();
     private TopicRow? _editingTopic;
@@ -167,8 +182,22 @@ else
     private async Task LoadAsync()
     {
         _topics = await Catalog.GetTopicsAsync(CancellationToken.None);
+        // Kategori yang dipilih bisa hilang setelah topiknya diubah
+        if (_category is not null && !_topics.Any(t => IsSelected(t.Category.Trim()))) _category = null;
         _versions = await Catalog.GetVersionsAsync(CancellationToken.None);
     }
+
+    // Kategori diisi bebas, jadi "soc" dan "Soc" dianggap sama
+    private IEnumerable<(string Category, int Count)> Categories =>
+        _topics.GroupBy(t => t.Category.Trim(), StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(g => (g.First().Category.Trim(), g.Count()));
+
+    private bool IsSelected(string category) =>
+        string.Equals(_category, category, StringComparison.OrdinalIgnoreCase);
+
+    private IEnumerable<TopicView> FilteredTopics =>
+        _category is null ? _topics : _topics.Where(t => IsSelected(t.Category.Trim()));
 
     private List<FormVersionSummary> VersionsOf(int topicId) =>
         _versions.Where(v => v.TopicId == topicId).OrderByDescending(v => v.VersionNo).ToList();
