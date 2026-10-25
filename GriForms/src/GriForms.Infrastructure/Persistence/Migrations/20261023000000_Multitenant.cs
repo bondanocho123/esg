@@ -7,7 +7,7 @@ namespace GriForms.Infrastructure.Persistence.Migrations
 {
     // Multitenant: semua data lama menjadi milik tenant 1 (Z Resource, ZRES). Migration ini tidak menghapus peran apa pun;
     // pencabutan peran PlatformAdmin dilakukan bootstrap saat startup (PlatformBootstrapper).
-    // Tabel telemetry belum punya migration sebelumnya, jadi dibuat di sini langsung dengan TenantId.
+    // Tabel telemetry sudah dibuat oleh AddTelemetry2, jadi di sini hanya ditambah TenantId (default tenant 1).
     // SQLite: AddForeignKey ke tabel lama membuat EF membangun ulang tabel itu di akhir migration. Backup app.db dulu.
     /// <inheritdoc />
     public partial class Multitenant : Migration
@@ -124,60 +124,17 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                         principalColumn: "Id");
                 });
 
-            migrationBuilder.CreateTable(
-                name: "TelemetryDevices",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    TenantId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Code = table.Column<string>(type: "TEXT", nullable: false),
-                    Name = table.Column<string>(type: "TEXT", nullable: false),
-                    SiteId = table.Column<int>(type: "INTEGER", nullable: false),
-                    ApiKeyHash = table.Column<string>(type: "TEXT", nullable: false),
-                    IsActive = table.Column<bool>(type: "INTEGER", nullable: false),
-                    LastSeenAt = table.Column<DateTime>(type: "TEXT", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_TelemetryDevices", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_TelemetryDevices_Sites_SiteId",
-                        column: x => x.SiteId,
-                        principalTable: "Sites",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_TelemetryDevices_Tenants_TenantId",
-                        column: x => x.TenantId,
-                        principalTable: "Tenants",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                });
+            // Device lama otomatis milik tenant 1; Code kini unik per tenant, bukan global
+            migrationBuilder.AddColumn<int>(
+                name: "TenantId",
+                table: "TelemetryDevices",
+                type: "INTEGER",
+                nullable: false,
+                defaultValue: 1);
 
-            migrationBuilder.CreateTable(
-                name: "TelemetryReadings",
-                columns: table => new
-                {
-                    Id = table.Column<long>(type: "INTEGER", nullable: false)
-                        .Annotation("Sqlite:Autoincrement", true),
-                    DeviceId = table.Column<int>(type: "INTEGER", nullable: false),
-                    Metric = table.Column<string>(type: "TEXT", nullable: false),
-                    Value = table.Column<double>(type: "REAL", nullable: false),
-                    Unit = table.Column<string>(type: "TEXT", nullable: false),
-                    RecordedAt = table.Column<DateTime>(type: "TEXT", nullable: false),
-                    ReceivedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_TelemetryReadings", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_TelemetryReadings_TelemetryDevices_DeviceId",
-                        column: x => x.DeviceId,
-                        principalTable: "TelemetryDevices",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                });
+            migrationBuilder.DropIndex(
+                name: "IX_TelemetryDevices_Code",
+                table: "TelemetryDevices");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Tenants_Code",
@@ -223,26 +180,10 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                 column: "ActiveTenantId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_TelemetryDevices_ApiKeyHash",
-                table: "TelemetryDevices",
-                column: "ApiKeyHash",
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_TelemetryDevices_SiteId",
-                table: "TelemetryDevices",
-                column: "SiteId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_TelemetryDevices_TenantId_Code",
                 table: "TelemetryDevices",
                 columns: new[] { "TenantId", "Code" },
                 unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "IX_TelemetryReadings_DeviceId_Metric_RecordedAt",
-                table: "TelemetryReadings",
-                columns: new[] { "DeviceId", "Metric", "RecordedAt" });
 
             migrationBuilder.AddForeignKey(
                 name: "FK_AuditEntries_Tenants_TenantId",
@@ -291,6 +232,14 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                 principalTable: "Tenants",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.AddForeignKey(
+                name: "FK_TelemetryDevices_Tenants_TenantId",
+                table: "TelemetryDevices",
+                column: "TenantId",
+                principalTable: "Tenants",
+                principalColumn: "Id",
+                onDelete: ReferentialAction.Restrict);
         }
 
         /// <inheritdoc />
@@ -320,17 +269,29 @@ namespace GriForms.Infrastructure.Persistence.Migrations
                 name: "FK_UserSiteRoles_Tenants_TenantId",
                 table: "UserSiteRoles");
 
+            migrationBuilder.DropForeignKey(
+                name: "FK_TelemetryDevices_Tenants_TenantId",
+                table: "TelemetryDevices");
+
+            migrationBuilder.DropIndex(
+                name: "IX_TelemetryDevices_TenantId_Code",
+                table: "TelemetryDevices");
+
+            migrationBuilder.DropColumn(
+                name: "TenantId",
+                table: "TelemetryDevices");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TelemetryDevices_Code",
+                table: "TelemetryDevices",
+                column: "Code",
+                unique: true);
+
             migrationBuilder.DropTable(
                 name: "PlatformAdmins");
 
             migrationBuilder.DropTable(
-                name: "TelemetryReadings");
-
-            migrationBuilder.DropTable(
                 name: "UserProfiles");
-
-            migrationBuilder.DropTable(
-                name: "TelemetryDevices");
 
             migrationBuilder.DropTable(
                 name: "Tenants");
