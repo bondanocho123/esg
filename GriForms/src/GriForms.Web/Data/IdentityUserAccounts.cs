@@ -33,6 +33,23 @@ public sealed class IdentityUserAccounts(UserManager<ApplicationUser> users) : I
             await users.DeleteAsync(user);
     }
 
+    public async Task ResetPasswordAsync(string userId, string newPassword, CancellationToken ct)
+    {
+        var user = await users.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException("Akun tidak ditemukan.");
+
+        // Lewat token reset agar aturan kata sandi Identity tetap berlaku dan security stamp ikut diperbarui
+        var token = await users.GeneratePasswordResetTokenAsync(user);
+        var result = await users.ResetPasswordAsync(user, token, newPassword);
+        if (!result.Succeeded)
+            throw new InvalidOperationException(
+                $"Kata sandi tidak bisa diatur ulang: {string.Join(" ", result.Errors.Select(e => e.Description))}");
+
+        // Akun yang terkunci karena salah kata sandi dibuka kembali
+        await users.SetLockoutEndDateAsync(user, null);
+        await users.ResetAccessFailedCountAsync(user);
+    }
+
     public async Task<IReadOnlyDictionary<string, string>> GetEmailsAsync(IReadOnlyCollection<string> userIds, CancellationToken ct)
     {
         var ids = userIds.Distinct().ToList();

@@ -14,5 +14,9 @@ public interface IUserAccounts
     // Kompensasi bila penyimpanan profil dan peran gagal setelah akun dibuat
     Task DeleteAsync(string userId, CancellationToken ct);
 
+    // Mengganti kata sandi tanpa kata sandi lama dan membatalkan sesi login lain (security stamp baru).
+    // InvalidOperationException bila akun tidak ada atau Identity menolak kata sandinya.
+    Task ResetPasswordAsync(string userId, string newPassword, CancellationToken ct);
+
     Task<IReadOnlyDictionary<string, string>> GetEmailsAsync(IReadOnlyCollection<string> userIds, CancellationToken ct);
 }

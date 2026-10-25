@@ -156,6 +156,50 @@ public sealed class TenantSettings(
             logger.LogInformation("Peran {Role} site {SiteId} dicabut dari {TargetUserId}", role.Role, role.SiteId, role.UserId);
     }
 
+    public async Task ResetPasswordAsync(string userId, string temporaryPassword, CancellationToken ct)
+    {
+        var (actor, tenantId) = await EnsureTenantAdminAsync(ct);
+        if (string.IsNullOrWhiteSpace(temporaryPassword))
+            throw new InvalidOperationException("Isi kata sandi sementara.");
+        if (userId == actor)
+            throw new InvalidOperationException("Untuk akun sendiri, gunakan halaman ganti kata sandi.");
+
+        // db.UserSiteRoles sudah dibatasi ke tenant aktif: pengguna tenant lain dianggap tidak ditemukan
+        if (!await db.UserSiteRoles.AnyAsync(r => r.UserId == userId, ct))
+            throw new InvalidOperationException("Pengguna tidak ditemukan di organisasi ini.");
+        if (await db.PlatformAdmins.AnyAsync(p => p.UserId == userId, ct))
+            throw new InvalidOperationException("Kata sandi PlatformAdmin tidak bisa diatur ulang dari organisasi.");
+        // IgnoreQueryFilters: keanggotaan di tenant lain justru yang diperiksa
+        if (await db.UserSiteRoles.IgnoreQueryFilters().AnyAsync(r => r.UserId == userId && r.TenantId != tenantId, ct))
+            throw new InvalidOperationException("Pengguna ini juga anggota organisasi lain, jadi kata sandinya tidak bisa diatur ulang dari sini.");
+
+        // Flag wajib ganti disimpan lebih dulu: bila langkah berikutnya gagal di tengah, kata sandi yang diketahui
+        // Admin tidak pernah berlaku tanpa kewajiban ganti. Bila Identity menolak, flag dikembalikan seperti semula.
+        var profile = await db.FindOrAddProfileAsync(userId, ct);
+        var wasRequired = profile.MustChangePassword;
+        profile.MustChangePassword = true;
+        profile.UpdatedAt = clock.UtcNow;
+        db.AuditEntries.Add(Audit(tenantId, "UserAccount", userId, "PasswordReset", null, null, actor));
+        await SaveAsync(code: null, ct);
+
+        try
+        {
+            await accounts.ResetPasswordAsync(userId, temporaryPassword, CancellationToken.None);
+        }
+        catch
+        {
+            db.ChangeTracker.Clear();
+            var restore = await db.UserProfiles.FirstAsync(p => p.UserId == userId, CancellationToken.None);
+            restore.MustChangePassword = wasRequired;
+            db.AuditEntries.Add(Audit(tenantId, "UserAccount", userId, "PasswordResetFailed", null, null, actor));
+            await db.SaveChangesAsync(CancellationToken.None);
+            throw;
+        }
+
+        using (Scope(tenantId, actor))
+            logger.LogInformation("Kata sandi {TargetUserId} diatur ulang; wajib diganti saat login berikutnya", userId);
+    }
+
     private async Task<(string UserId, int TenantId)> EnsureTenantAdminAsync(CancellationToken ct)
     {
         var userId = user.UserId;

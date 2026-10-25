@@ -52,6 +52,19 @@ public sealed class FakeUserAccounts : IUserAccounts
         return Task.CompletedTask;
     }
 
+    public List<(string UserId, string Password)> Resets { get; } = new();
+
+    // Mensimulasikan Identity menolak kata sandi (mis. terlalu lemah)
+    public bool FailReset { get; set; }
+
+    public Task ResetPasswordAsync(string userId, string newPassword, CancellationToken ct)
+    {
+        if (FailReset) throw new InvalidOperationException("Kata sandi tidak bisa diatur ulang: terlalu lemah.");
+        if (!_byEmail.Values.Any(a => a.UserId == userId)) throw new InvalidOperationException("Akun tidak ditemukan.");
+        Resets.Add((userId, newPassword));
+        return Task.CompletedTask;
+    }
+
     public Task<IReadOnlyDictionary<string, string>> GetEmailsAsync(IReadOnlyCollection<string> userIds, CancellationToken ct) =>
         Task.FromResult<IReadOnlyDictionary<string, string>>(
             _byEmail.Values.Where(a => userIds.Contains(a.UserId)).ToDictionary(a => a.UserId, a => a.Email));

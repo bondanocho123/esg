@@ -107,6 +107,11 @@ else
             <div @key="member.UserId" class="border-t border-line py-2">
                 <div class="flex flex-wrap items-center gap-2">
                     <span class="min-w-48 text-xs font-semibold text-ink">@member.Email</span>
+                    @if (member.UserId != Session.Current.UserId)
+                    {
+                        <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.LockReset"
+                                  Disabled="_busy" OnClick="() => StartReset(member)">Atur ulang kata sandi</GfButton>
+                    }
                     @foreach (var role in member.Roles)
                     {
                         <span class="inline-flex items-center gap-1">
@@ -116,6 +121,22 @@ else
                         </span>
                     }
                 </div>
+                @if (_reset is { } reset && reset.UserId == member.UserId)
+                {
+                    <div class="alert alert-warning mt-2" role="group" aria-label="Atur ulang kata sandi @member.Email">
+                        <p class="m-0 mb-2">
+                            Kata sandi sementara untuk @member.Email. Sampaikan ke pengguna secara langsung;
+                            pengguna wajib menggantinya saat login berikutnya dan sesi login lainnya berakhir.
+                        </p>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <input type="password" class="form-control h-7 w-64 text-xs" autocomplete="new-password"
+                                   placeholder="Kata sandi sementara" aria-label="Kata sandi sementara" @bind="reset.Password" />
+                            <GfButton Size="GfSize.Sm" Variant="GfVariant.Tertiary" Disabled="_busy"
+                                      OnClick="ResetPasswordAsync">Simpan kata sandi</GfButton>
+                            <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" OnClick="() => _reset = null">Batal</GfButton>
+                        </div>
+                    </div>
+                }
                 <div class="mt-2 flex flex-wrap items-center gap-2">
                     <select class="form-select h-7 w-36 text-xs" aria-label="Peran tambahan" @bind="grant.Role">
                         @foreach (var role in Roles)
@@ -144,6 +165,7 @@ else
     private IReadOnlyList<SiteView> _sites = [];
     private IReadOnlyList<MemberView> _members = [];
     private readonly Dictionary<string, RoleForm> _grantForms = new();
+    private ResetForm? _reset;
     private SiteForm _newSite = new();
     private MemberForm _newMember = new();
     private SiteForm? _editing;
@@ -201,7 +223,8 @@ else
         if (result is not null)
             _notice = result.Created
                 ? $"Akun {result.Email} dibuat. Pengguna wajib mengganti kata sandi awal saat login pertama."
-                : $"Peran ditambahkan untuk {result.Email}. Kata sandi akun yang sudah ada tidak diubah.";
+                : $"Peran ditambahkan untuk {result.Email}. Kata sandi akun yang sudah ada tidak diubah; " +
+                  "gunakan \"Atur ulang kata sandi\" bila pengguna tidak bisa login.";
     }
 
     private Task GrantAsync(string userId) => RunAsync(async () =>
@@ -211,6 +234,15 @@ else
         _grantForms.Remove(userId);
         await LoadAsync();
     }, "Peran diberikan.");
+
+    private void StartReset(MemberView member) => _reset = new ResetForm { UserId = member.UserId, Email = member.Email };
+
+    private Task ResetPasswordAsync() => RunAsync(async () =>
+    {
+        if (_reset is not { } reset) return;
+        await Settings.ResetPasswordAsync(reset.UserId, reset.Password, CancellationToken.None);
+        _reset = null;
+    }, $"Kata sandi {_reset?.Email} diatur ulang. Pengguna wajib menggantinya saat login berikutnya.");
 
     private Task RevokeAsync(int roleId) => RunAsync(async () =>
     {
@@ -260,6 +292,13 @@ else
     {
         public RoleName Role { get; set; } = RoleName.Contributor;
         public int? SiteId { get; set; }
+    }
+
+    private sealed class ResetForm
+    {
+        public string UserId { get; init; } = "";
+        public string Email { get; init; } = "";
+        public string Password { get; set; } = "";
     }
 
     private sealed class MemberForm : RoleForm

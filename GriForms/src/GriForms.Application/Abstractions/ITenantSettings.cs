@@ -21,4 +21,9 @@ public interface ITenantSettings
     Task GrantRoleAsync(string userId, RoleName role, int? siteId, CancellationToken ct);
 
     Task RevokeRoleAsync(int roleId, CancellationToken ct);
+
+    // Kata sandi sementara untuk anggota tenant aktif; pengguna wajib menggantinya saat login berikutnya.
+    // Ditolak untuk akun sendiri, PlatformAdmin, dan pengguna yang juga anggota organisasi lain
+    // (Admin satu organisasi tidak boleh mengambil alih akun yang punya akses di luar organisasinya).
+    Task ResetPasswordAsync(string userId, string temporaryPassword, CancellationToken ct);
 }
