@@ -12,6 +12,11 @@ public sealed record SessionInfo(
     public static readonly SessionInfo Anonymous = new(null, null, [], false, false, false);
 
     public int? TenantId => ActiveTenant?.Id;
+
+    // Peran pengguna di tenant aktif (semua site); dipakai menu. Hak per site tetap diperiksa layanan.
+    public IReadOnlySet<RoleName> Roles { get; init; } = new HashSet<RoleName>();
+
+    public bool Has(RoleName role) => Roles.Contains(role);
 }
 
 public sealed record SiteInput(string Code, string Name, string? Location);
