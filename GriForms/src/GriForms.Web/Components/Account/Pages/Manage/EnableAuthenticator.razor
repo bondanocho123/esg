@@ -12,7 +12,7 @@
 @inject IdentityRedirectManager RedirectManager
 @inject ILogger<EnableAuthenticator> Logger
 
-<PageTitle>Configure authenticator app</PageTitle>
+<PageTitle>Atur aplikasi autentikator</PageTitle>
 
 @if (recoveryCodes is not null)
 {
@@ -21,48 +21,34 @@
 else
 {
     <StatusMessage Message="@message" />
-    <h3>Configure authenticator app</h3>
-    <div>
-        <p>To use an authenticator app go through the following steps:</p>
-        <ol class="list">
+    <GfCard Title="Atur aplikasi autentikator" Icon="@Icons.Material.Filled.Security">
+        <ol class="m-0 flex list-decimal flex-col gap-3 pl-5 text-xs">
             <li>
-                <p>
-                    Download a two-factor authenticator app like Microsoft Authenticator for
-                    <a href="https://go.microsoft.com/fwlink/?Linkid=825072">Android</a> and
-                    <a href="https://go.microsoft.com/fwlink/?Linkid=825073">iOS</a> or
-                    Google Authenticator for
-                    <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&amp;hl=en">Android</a> and
-                    <a href="https://itunes.apple.com/us/app/google-authenticator/id388497605?mt=8">iOS</a>.
-                </p>
+                Pasang aplikasi autentikator, mis. Microsoft Authenticator
+                (<a href="https://go.microsoft.com/fwlink/?Linkid=825072">Android</a>,
+                <a href="https://go.microsoft.com/fwlink/?Linkid=825073">iOS</a>) atau Google Authenticator
+                (<a href="https://play.google.com/store/apps/details?id=com.google.android.apps.authenticator2&amp;hl=en">Android</a>,
+                <a href="https://itunes.apple.com/us/app/google-authenticator/id388497605?mt=8">iOS</a>).
             </li>
             <li>
-                <p>Scan the QR Code or enter this key <kbd>@sharedKey</kbd> into your two factor authenticator app. Spaces and casing do not matter.</p>
-                <div class="alert alert-info">Learn how to <a href="https://go.microsoft.com/fwlink/?Linkid=852423">enable QR code generation</a>.</div>
-                <div></div>
+                Pindai kode QR atau masukkan kunci berikut ke aplikasi autentikator. Spasi dan huruf besar/kecil tidak berpengaruh.
+                <div class="mt-1.5"><kbd class="rounded-gf border border-line bg-canvas px-2 py-1 font-mono text-xs text-ink">@sharedKey</kbd></div>
                 <div data-url="@authenticatorUri"></div>
             </li>
             <li>
-                <p>
-                    Once you have scanned the QR code or input the key above, your two factor authentication app will provide you
-                    with a unique code. Enter the code in the confirmation box below.
-                </p>
-                <div class="row">
-                    <div class="col-xl-6">
-                        <EditForm Model="Input" FormName="send-code" OnValidSubmit="OnValidSubmitAsync" method="post">
-                            <DataAnnotationsValidator />
-                            <div class="form-floating mb-3">
-                                <InputText @bind-Value="Input.Code" id="Input.Code" class="form-control" autocomplete="off" placeholder="Enter the code" />
-                                <label for="Input.Code" class="control-label form-label">Verification Code</label>
-                                <ValidationMessage For="() => Input.Code" class="text-danger" />
-                            </div>
-                            <button type="submit" class="w-full btn btn-lg btn-primary">Verify</button>
-                            <ValidationSummary class="text-danger" role="alert" />
-                        </EditForm>
+                Setelah kode QR dipindai atau kunci dimasukkan, aplikasi menampilkan kode unik. Masukkan kode itu di bawah.
+                <EditForm Model="Input" FormName="send-code" OnValidSubmit="OnValidSubmitAsync" method="post" class="mt-2 max-w-xs">
+                    <DataAnnotationsValidator />
+                    <div class="mb-3">
+                        <label for="Input.Code" class="form-label">Kode verifikasi</label>
+                        <InputText @bind-Value="Input.Code" id="Input.Code" class="form-control" autocomplete="one-time-code" inputmode="numeric" />
+                        <ValidationMessage For="() => Input.Code" class="text-danger" />
                     </div>
-                </div>
+                    <GfButton Type="submit" StartIcon="@Icons.Material.Filled.Check">Verifikasi</GfButton>
+                </EditForm>
             </li>
         </ol>
-    </div>
+    </GfCard>
 }
 
 @code {
@@ -110,7 +96,7 @@ else
 
         if (!is2faTokenValid)
         {
-            message = "Error: Verification code is invalid.";
+            message = "Error: Kode verifikasi salah.";
             return;
         }
 
@@ -118,7 +104,7 @@ else
         var userId = await UserManager.GetUserIdAsync(user);
         Logger.LogInformation("User with ID '{UserId}' has enabled 2FA with an authenticator app.", userId);
 
-        message = "Your authenticator app has been verified.";
+        message = "Aplikasi autentikator berhasil diverifikasi.";
 
         if (await UserManager.CountRecoveryCodesAsync(user) == 0)
         {
@@ -175,10 +161,10 @@ else
 
     private sealed class InputModel
     {
-        [Required]
-        [StringLength(7, ErrorMessage = "The {0} must be at least {2} and at max {1} characters long.", MinimumLength = 6)]
+        [Required(ErrorMessage = "Wajib diisi.")]
+        [StringLength(7, ErrorMessage = "Kode verifikasi terdiri dari {2} sampai {1} karakter.", MinimumLength = 6)]
         [DataType(DataType.Text)]
-        [Display(Name = "Verification Code")]
+        [Display(Name = "Kode verifikasi")]
         public string Code { get; set; } = "";
     }
 }

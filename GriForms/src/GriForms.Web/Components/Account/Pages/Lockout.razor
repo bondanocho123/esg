@@ -1,8 +1,9 @@
 ﻿@page "/Account/Lockout"
+@layout GriForms.Web.Components.Layout.AuthLayout
 
-<PageTitle>Locked out</PageTitle>
+<PageTitle>Akun terkunci</PageTitle>
 
-<header>
-    <h1 class="text-danger">Locked out</h1>
-    <p class="text-danger" role="alert">This account has been locked out, please try again later.</p>
-</header>
+<h1 class="mb-4 text-center text-lg">Akun terkunci</h1>
+
+<div class="alert alert-danger" role="alert">Akun ini dikunci sementara karena terlalu banyak percobaan masuk. Coba lagi nanti.</div>
+<p class="mt-5 mb-0 text-center text-[11px] text-muted"><a href="Account/Login">Kembali ke halaman masuk</a></p>

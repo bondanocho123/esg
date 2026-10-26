@@ -3,35 +3,38 @@
 
 @inject SignInManager<ApplicationUser> SignInManager
 
-<ul class="nav nav-pills flex-column">
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage" Match="NavLinkMatch.All">Profile</NavLink>
-    </li>
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/Email">Email</NavLink>
-    </li>
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/ChangePassword">Password</NavLink>
-    </li>
-    @if (hasExternalLogins)
+<ul class="m-0 flex list-none flex-col gap-0.5 p-0">
+    @foreach (var item in Items)
     {
-        <li class="nav-item">
-            <NavLink class="nav-link" href="Account/Manage/ExternalLogins">External logins</NavLink>
+        <li>
+            <NavLink href="@item.Href" Match="@(item.Href == "Account/Manage" ? NavLinkMatch.All : NavLinkMatch.Prefix)"
+                     class="group flex h-8 items-center gap-2.5 rounded-md px-2.5 text-xs font-medium text-muted no-underline transition hover:bg-primary/5 hover:text-primary hover:no-underline [&.active]:bg-primary/10 [&.active]:text-primary-dark [&.active]:shadow-[inset_2px_0_0_currentColor]">
+                <GfIcon Icon="@item.Icon" Size="GfSize.Sm" Class="text-muted/70 group-hover:text-primary group-[.active]:text-primary" />
+                <span class="truncate">@item.Label</span>
+            </NavLink>
         </li>
     }
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/TwoFactorAuthentication">Two-factor authentication</NavLink>
-    </li>
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/Passkeys">Passkeys</NavLink>
-    </li>
-    <li class="nav-item">
-        <NavLink class="nav-link" href="Account/Manage/PersonalData">Personal data</NavLink>
-    </li>
 </ul>
 
 @code {
     private bool hasExternalLogins;
+
+    private IEnumerable<(string Href, string Icon, string Label)> Items
+    {
+        get
+        {
+            yield return ("Account/Manage", Icons.Material.Filled.Person, "Profil");
+            yield return ("Account/Manage/Email", Icons.Material.Filled.Email, "Email");
+            yield return ("Account/Manage/ChangePassword", Icons.Material.Filled.Password, "Kata sandi");
+            if (hasExternalLogins)
+            {
+                yield return ("Account/Manage/ExternalLogins", Icons.Material.Filled.Link, "Login eksternal");
+            }
+            yield return ("Account/Manage/TwoFactorAuthentication", Icons.Material.Filled.Security, "Verifikasi dua langkah");
+            yield return ("Account/Manage/Passkeys", Icons.Material.Filled.Fingerprint, "Passkey");
+            yield return ("Account/Manage/PersonalData", Icons.Material.Filled.Shield, "Data pribadi");
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {

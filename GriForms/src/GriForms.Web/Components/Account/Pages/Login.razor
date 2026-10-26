@@ -1,4 +1,5 @@
 ﻿@page "/Account/Login"
+@layout GriForms.Web.Components.Layout.AuthLayout
 
 @using System.ComponentModel.DataAnnotations
 @using Microsoft.AspNetCore.Authentication
@@ -13,62 +14,46 @@
 @inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
 
-<PageTitle>Log in</PageTitle>
+<PageTitle>Masuk</PageTitle>
 
-<h1>Log in</h1>
-<div class="row">
-    <div class="col-lg-6">
-        <section>
-            <StatusMessage Message="@errorMessage" />
-            <EditForm EditContext="editContext" method="post" OnSubmit="LoginUser" FormName="login">
-                <DataAnnotationsValidator />
-                <h2>Use a local account to log in.</h2>
-                <hr />
-                <ValidationSummary class="text-danger" role="alert" />
-                <div class="form-floating mb-3">
-                    <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username webauthn" aria-required="true" placeholder="name@example.com" />
-                    <label for="Input.Email" class="form-label">Email</label>
-                    <ValidationMessage For="() => Input.Email" class="text-danger" />
-                </div>
-                <div class="form-floating mb-3">
-                    <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="password" />
-                    <label for="Input.Password" class="form-label">Password</label>
-                    <ValidationMessage For="() => Input.Password" class="text-danger" />
-                </div>
-                <div class="checkbox mb-3">
-                    <label class="form-label">
-                        <InputCheckbox @bind-Value="Input.RememberMe" class="darker-border-checkbox form-check-input" />
-                        Remember me
-                    </label>
-                </div>
-                <div>
-                    <button type="submit" class="w-full btn btn-lg btn-primary">Log in</button>
-                </div>
-                <hr />
-                <div class="d-flex flex-column">
-                    <span class="text-muted mx-auto mt-2">OR</span>
-                    <PasskeySubmit Operation="PasskeyOperation.Request" Name="Input.Passkey" EmailName="Input.Email" class="btn btn-link mx-auto">Log in with a passkey</PasskeySubmit>
-                </div>
-                <hr />
-                <div>
-                    <p>
-                        <a href="Account/ForgotPassword">Forgot your password?</a>
-                    </p>
-                    <p>
-                        <a href="Account/ResendEmailConfirmation">Resend email confirmation</a>
-                    </p>
-                </div>
-            </EditForm>
-        </section>
+<h1 class="mb-1 text-center text-lg">Masuk</h1>
+<p class="mb-5 text-center text-xs text-muted">Gunakan email dan kata sandi akun Anda.</p>
+
+<StatusMessage Message="@errorMessage" />
+<EditForm EditContext="editContext" method="post" OnSubmit="LoginUser" FormName="login">
+    <DataAnnotationsValidator />
+    <div class="mb-3">
+        <label for="Input.Email" class="form-label">Email</label>
+        <InputText @bind-Value="Input.Email" id="Input.Email" class="form-control" autocomplete="username webauthn" aria-required="true" placeholder="nama@perusahaan.com" />
+        <ValidationMessage For="() => Input.Email" class="text-danger" />
     </div>
-    <div class="col-lg-4 col-lg-offset-2">
-        <section>
-            <h3>Use another service to log in.</h3>
-            <hr />
-            <ExternalLoginPicker />
-        </section>
+    <div class="mb-3">
+        <div class="flex items-baseline justify-between">
+            <label for="Input.Password" class="form-label">Kata sandi</label>
+            <a href="Account/ForgotPassword" class="text-[11px]">Lupa kata sandi?</a>
+        </div>
+        <InputText type="password" @bind-Value="Input.Password" id="Input.Password" class="form-control" autocomplete="current-password" aria-required="true" placeholder="Kata sandi" />
+        <ValidationMessage For="() => Input.Password" class="text-danger" />
     </div>
-</div>
+    <div class="checkbox mb-4">
+        <label class="form-label">
+            <InputCheckbox @bind-Value="Input.RememberMe" class="darker-border-checkbox form-check-input" />
+            Ingat saya
+        </label>
+    </div>
+    <button type="submit" class="w-full btn btn-lg btn-primary">Masuk</button>
+
+    <div class="my-4 flex items-center gap-3 text-[11px] text-muted" aria-hidden="true">
+        <span class="h-px flex-1 bg-line"></span>atau<span class="h-px flex-1 bg-line"></span>
+    </div>
+    <PasskeySubmit Operation="PasskeyOperation.Request" Name="Input.Passkey" EmailName="Input.Email" class="w-full btn btn-lg btn-outline-primary">Masuk dengan passkey</PasskeySubmit>
+</EditForm>
+
+<ExternalLoginPicker />
+
+<p class="mt-5 mb-0 text-center text-[11px] text-muted">
+    Email konfirmasi belum diterima? <a href="Account/ResendEmailConfirmation">Kirim ulang</a>
+</p>
 
 @code {
     private string? errorMessage;
@@ -151,21 +136,21 @@
         }
         else
         {
-            errorMessage = "Error: Invalid login attempt.";
+            errorMessage = "Error: Email atau kata sandi salah.";
         }
     }
 
     private sealed class InputModel
     {
-        [Required]
-        [EmailAddress]
+        [Required(ErrorMessage = "Email wajib diisi.")]
+        [EmailAddress(ErrorMessage = "Format email tidak valid.")]
         public string Email { get; set; } = "";
 
-        [Required]
+        [Required(ErrorMessage = "Kata sandi wajib diisi.")]
         [DataType(DataType.Password)]
         public string Password { get; set; } = "";
 
-        [Display(Name = "Remember me?")]
+        [Display(Name = "Ingat saya")]
         public bool RememberMe { get; set; }
 
         public PasskeyInputModel? Passkey { get; set; }
