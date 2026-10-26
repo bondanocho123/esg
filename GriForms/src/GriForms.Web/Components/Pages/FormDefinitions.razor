@@ -3,75 +3,286 @@
 @using Microsoft.AspNetCore.Authorization
 @using GriForms.Application.Abstractions
 @using GriForms.Application.Forms
+@using GriForms.Domain.Enums
+@using GriForms.Web.Components.Forms
 @using GriForms.Web.Services
 
 @attribute [Authorize(Policy = TenancyPolicies.PlatformAdmin)]
 
 @inject IFormCatalog Catalog
+@inject NavigationManager Navigation
 @inject ILogger<FormDefinitions> Logger
 
 <PageTitle>Definisi form</PageTitle>
 
 <GfHeader Title="Definisi form"
-          Subtitle="Katalog form GRI (topik, versi, dan pemetaan) berlaku untuk semua organisasi dan hanya dikelola PlatformAdmin."
+          Subtitle="Katalog form GRI (topik, versi, dan pemetaan) berlaku untuk semua organisasi dan hanya dikelola PlatformAdmin. Versi terbit terkunci; perubahan selalu lewat Draft baru."
           Icon="@Icons.Material.Filled.Description" />
 
 @if (_error is not null)
 {
     <div class="alert alert-danger" role="alert">@_error</div>
 }
-else if (_versions is null)
+@if (_notice is not null)
+{
+    <div class="alert alert-success" role="status">@_notice</div>
+}
+
+<GfCard Title="Tambah topik" Icon="@Icons.Material.Filled.PostAdd" Variant="GfVariant.Tertiary">
+    <div class="grid gap-3 sm:grid-cols-[8rem_10rem_1fr_auto] sm:items-end">
+        <div>
+            <GfLabel For="topic-code" Required="true">Kode</GfLabel>
+            <input id="topic-code" class="form-control" placeholder="403" @bind="_newTopic.Code" />
+        </div>
+        <div>
+            <GfLabel For="topic-category" Required="true">Kategori</GfLabel>
+            <input id="topic-category" class="form-control" placeholder="Soc" @bind="_newTopic.Category" />
+        </div>
+        <div>
+            <GfLabel For="topic-name" Required="true">Nama</GfLabel>
+            <input id="topic-name" class="form-control" placeholder="Keselamatan dan Kesehatan Kerja" @bind="_newTopic.Name" />
+        </div>
+        <GfButton StartIcon="@Icons.Material.Filled.Save" Disabled="_busy" OnClick="CreateTopicAsync">Tambah topik</GfButton>
+    </div>
+</GfCard>
+
+@if (!_loaded)
 {
     <GfText Muted="true">Memuat definisi form...</GfText>
 }
-else if (_versions.Count == 0)
+else if (_topics.Count == 0)
 {
-    <GfCard Title="Belum ada definisi form" Icon="@Icons.Material.Filled.Description" Variant="GfVariant.Tertiary">
-        <GfText Typo="Typo.body2" Muted="true">Belum ada versi form yang tersimpan.</GfText>
+    <GfCard Title="Belum ada topik" Icon="@Icons.Material.Filled.Description" Variant="GfVariant.Tertiary">
+        <GfText Typo="Typo.body2" Muted="true">Tambahkan topik GRI lebih dulu, lalu buat Draft definisi form untuk topik itu.</GfText>
     </GfCard>
 }
 else
 {
-    <GfCard Title="Versi form" Icon="@Icons.Material.Filled.Description">
-        <table class="table text-xs">
-            <thead>
-                <tr><th>Topik</th><th>Versi</th><th>Standar</th><th>Berlaku</th><th>Status</th><th>Pemetaan</th></tr>
-            </thead>
-            <tbody>
-                @foreach (var v in _versions)
+    <div class="mb-3 flex flex-wrap items-center gap-2" role="group" aria-label="Filter kategori">
+        <span class="text-xs font-medium text-muted">Kategori:</span>
+        <GfButton Size="GfSize.Sm" Appearance="@(_category is null ? GfAppearance.Filled : GfAppearance.Outlined)"
+                  aria-pressed="@(_category is null ? "true" : "false")"
+                  OnClick="() => _category = null">Semua (@_topics.Count)</GfButton>
+        @foreach (var (category, count) in Categories)
+        {
+            <GfButton @key="category" Size="GfSize.Sm"
+                      Appearance="@(IsSelected(category) ? GfAppearance.Filled : GfAppearance.Outlined)"
+                      aria-pressed="@(IsSelected(category) ? "true" : "false")"
+                      OnClick="() => _category = category">@category (@count)</GfButton>
+        }
+    </div>
+
+    @foreach (var topic in FilteredTopics)
+    {
+        var versions = VersionsOf(topic.Id);
+        <GfCard @key="topic.Id" Title="@($"{topic.Code} {topic.Name}")" Icon="@Icons.Material.Filled.Description">
+            <HeaderActions>
+                <GfChip Variant="GfVariant.Secondary" Appearance="GfAppearance.Outlined">@topic.Category</GfChip>
+                <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.Edit"
+                          Disabled="_busy" OnClick="() => EditTopic(topic)">Ubah</GfButton>
+                <GfButton Size="GfSize.Sm" StartIcon="@Icons.Material.Filled.NoteAdd" Disabled="_busy"
+                          OnClick="() => CreateDraftAsync(topic.Id, null)">Draft baru</GfButton>
+            </HeaderActions>
+            <ChildContent>
+                @if (_editingTopic is { } edit && edit.TopicId == topic.Id)
                 {
-                    <tr @key="v.Id">
-                        <td>@v.TopicCode @v.TopicName</td>
-                        <td>@v.VersionNo</td>
-                        <td>@v.StandardRef</td>
-                        <td>@v.EffectiveFromYear–@(v.EffectiveToYear?.ToString() ?? "sekarang")</td>
-                        <td>@(v.IsPublished ? "Published" : "Draft")</td>
-                        <td>@v.MappingCount</td>
-                    </tr>
+                    <div class="mb-3 grid gap-2 sm:grid-cols-[8rem_10rem_1fr_auto]">
+                        <input class="form-control" aria-label="Kode topik" disabled="@(topic.VersionCount > 0)"
+                               title="@(topic.VersionCount > 0 ? "Kode tidak bisa diubah karena topik sudah punya versi" : null)"
+                               @bind="edit.Code" />
+                        <input class="form-control" aria-label="Kategori topik" @bind="edit.Category" />
+                        <input class="form-control" aria-label="Nama topik" @bind="edit.Name" />
+                        <div class="flex gap-1">
+                            <GfButton Size="GfSize.Sm" Disabled="_busy" OnClick="SaveTopicAsync">Simpan</GfButton>
+                            <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" OnClick="() => _editingTopic = null">Batal</GfButton>
+                        </div>
+                    </div>
                 }
-            </tbody>
-        </table>
-    </GfCard>
+
+                <div class="overflow-x-auto">
+                    <table class="table text-xs">
+                        <thead>
+                            <tr><th>Versi</th><th>Standar</th><th>Berlaku</th><th>Status</th><th>Submission</th><th>Pemetaan</th><th></th></tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var v in versions)
+                            {
+                                <tr @key="v.Id" class="@(v.Status == FormVersionStatus.Retired ? "text-muted" : null)">
+                                    <td>v@(v.VersionNo)</td>
+                                    <td>@v.StandardRef</td>
+                                    <td>@v.EffectiveFromYear–@(v.EffectiveToYear?.ToString() ?? "sekarang")</td>
+                                    <td><FormVersionStatusChip Status="v.Status" /></td>
+                                    <td>@v.SubmissionCount</td>
+                                    <td>@v.MappingCount</td>
+                                    <td class="text-end whitespace-nowrap">
+                                        @if (_confirm is { } c && c.VersionId == v.Id)
+                                        {
+                                            <span class="mr-1">@(c.Kind == ConfirmKind.Retire ? $"Pensiunkan v{v.VersionNo}?" : $"Hapus Draft v{v.VersionNo}?")</span>
+                                            <GfButton Size="GfSize.Sm" Variant="GfVariant.Tertiary" Disabled="_busy"
+                                                      OnClick="() => ConfirmAsync(v)">Ya</GfButton>
+                                            <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" OnClick="() => _confirm = null">Batal</GfButton>
+                                        }
+                                        else
+                                        {
+                                            @* Tiga slot lebar tetap (lihat/edit, salin/hapus, pensiunkan) agar tombol sejajar antar baris *@
+                                            <div class="inline-grid grid-cols-[5.5rem_9.5rem_7.5rem] justify-items-start">
+                                                <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.OpenInNew"
+                                                          Href="@($"definisi-form/{v.Id}")">@(v.Status == FormVersionStatus.Draft ? "Edit" : "Lihat")</GfButton>
+                                                @if (v.Status == FormVersionStatus.Draft)
+                                                {
+                                                    <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.Delete"
+                                                              Disabled="@(_busy || v.SubmissionCount > 0 || v.MappingCount > 0)"
+                                                              OnClick="() => _confirm = new(ConfirmKind.Delete, v.Id)">Hapus</GfButton>
+                                                }
+                                                else
+                                                {
+                                                    <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.ContentCopy"
+                                                              Disabled="_busy" OnClick="() => CreateDraftAsync(topic.Id, v.Id)">Salin jadi Draft</GfButton>
+                                                }
+                                                @if (v.Status == FormVersionStatus.Published)
+                                                {
+                                                    <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.Inventory2"
+                                                              Disabled="_busy" OnClick="() => _confirm = new(ConfirmKind.Retire, v.Id)">Pensiunkan</GfButton>
+                                                }
+                                            </div>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                            @if (versions.Count == 0)
+                            {
+                                <tr><td colspan="7" class="text-muted">Belum ada versi. Klik "Draft baru" untuk mulai.</td></tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </ChildContent>
+        </GfCard>
+    }
 }
 
 @code {
-    private IReadOnlyList<FormVersionSummary>? _versions;
+    private IReadOnlyList<TopicView> _topics = [];
+    private string? _category;   // null = semua kategori
+    private IReadOnlyList<FormVersionSummary> _versions = [];
+    private readonly TopicRow _newTopic = new();
+    private TopicRow? _editingTopic;
+    private Confirmation? _confirm;
+    private bool _loaded;
+    private bool _busy;
     private string? _error;
+    private string? _notice;
 
     protected override async Task OnInitializedAsync()
     {
+        await RunAsync(LoadAsync, notice: null);
+        _loaded = true;
+    }
+
+    private async Task LoadAsync()
+    {
+        _topics = await Catalog.GetTopicsAsync(CancellationToken.None);
+        // Kategori yang dipilih bisa hilang setelah topiknya diubah
+        if (_category is not null && !_topics.Any(t => IsSelected(t.Category.Trim()))) _category = null;
+        _versions = await Catalog.GetVersionsAsync(CancellationToken.None);
+    }
+
+    // Kategori diisi bebas, jadi "soc" dan "Soc" dianggap sama
+    private IEnumerable<(string Category, int Count)> Categories =>
+        _topics.GroupBy(t => t.Category.Trim(), StringComparer.OrdinalIgnoreCase)
+            .OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase)
+            .Select(g => (g.First().Category.Trim(), g.Count()));
+
+    private bool IsSelected(string category) =>
+        string.Equals(_category, category, StringComparison.OrdinalIgnoreCase);
+
+    private IEnumerable<TopicView> FilteredTopics =>
+        _category is null ? _topics : _topics.Where(t => IsSelected(t.Category.Trim()));
+
+    private List<FormVersionSummary> VersionsOf(int topicId) =>
+        _versions.Where(v => v.TopicId == topicId).OrderByDescending(v => v.VersionNo).ToList();
+
+    private Task CreateTopicAsync() => RunAsync(async () =>
+    {
+        await Catalog.CreateTopicAsync(_newTopic.ToInput(), CancellationToken.None);
+        (_newTopic.Code, _newTopic.Category, _newTopic.Name) = ("", "", "");
+        await LoadAsync();
+    }, "Topik ditambahkan.");
+
+    private void EditTopic(TopicView topic) =>
+        _editingTopic = new TopicRow { TopicId = topic.Id, Code = topic.Code, Category = topic.Category, Name = topic.Name };
+
+    private Task SaveTopicAsync() => RunAsync(async () =>
+    {
+        if (_editingTopic is not { } edit) return;
+        await Catalog.UpdateTopicAsync(edit.TopicId, edit.ToInput(), CancellationToken.None);
+        _editingTopic = null;
+        await LoadAsync();
+    }, "Topik disimpan.");
+
+    // Draft baru langsung dibuka di editor
+    private async Task CreateDraftAsync(int topicId, int? copyFromVersionId)
+    {
+        int? id = null;
+        await RunAsync(async () => id = await Catalog.CreateDraftAsync(topicId, copyFromVersionId, CancellationToken.None), notice: null);
+        if (id is { } versionId) Navigation.NavigateTo($"definisi-form/{versionId}");
+    }
+
+    private Task ConfirmAsync(FormVersionSummary version)
+    {
+        var kind = _confirm?.Kind;
+        _confirm = null;
+        return kind == ConfirmKind.Retire
+            ? RunAsync(async () =>
+            {
+                await Catalog.RetireAsync(version.Id, CancellationToken.None);
+                await LoadAsync();
+            }, $"{version.TopicCode} v{version.VersionNo} dipensiunkan. Submission baru tidak lagi memakai versi ini.")
+            : RunAsync(async () =>
+            {
+                await Catalog.DeleteDraftAsync(version.Id, CancellationToken.None);
+                await LoadAsync();
+            }, $"Draft {version.TopicCode} v{version.VersionNo} dihapus.");
+    }
+
+    // Semua operasi berurutan: satu DbContext per circuit tidak boleh dipakai bersamaan
+    private async Task RunAsync(Func<Task> action, string? notice)
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        _notice = null;
         try
         {
-            _versions = await Catalog.GetVersionsAsync(CancellationToken.None);
+            await action();
+            _notice = notice;
         }
-        catch (UnauthorizedAccessException ex)
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
         {
             _error = ex.Message;
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "Gagal memuat definisi form");
-            _error = "Gagal memuat definisi form.";
+            Logger.LogError(ex, "Operasi halaman Definisi form gagal");
+            _error = "Operasi gagal. Coba lagi.";
         }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private enum ConfirmKind { Retire, Delete }
+
+    private sealed record Confirmation(ConfirmKind Kind, int VersionId);
+
+    private sealed class TopicRow
+    {
+        public int TopicId { get; init; }
+        public string Code { get; set; } = "";
+        public string Category { get; set; } = "";
+        public string Name { get; set; } = "";
+
+        public TopicInput ToInput() => new(Code, Category, Name);
     }
 }

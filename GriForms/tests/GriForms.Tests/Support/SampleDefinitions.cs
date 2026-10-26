@@ -30,7 +30,8 @@ public static class SampleDefinitions
               "valueType": "number",
               "unit": "orang",
               "rows": [ { "key": "k3-dasar", "label": "Pelatihan K3 Dasar" } ],
-              "validation": { "min": 0, "integerOnly": true }
+              "validation": { "min": 0, "integerOnly": true },
+              "telemetry": { "feasibility": "manual", "note": "daftar hadir pelatihan" }
             }
           ]
         },
@@ -38,7 +39,8 @@ public static class SampleDefinitions
           "no": "403-9",
           "title": "Cedera terkait pekerjaan",
           "questions": [
-            { "key": "403-9-A", "type": "number", "label": "Jam kerja", "unit": "jam" },
+            { "key": "403-9-A", "type": "number", "label": "Jam kerja", "unit": "jam",
+              "telemetry": { "feasibility": "manual", "note": "bisa diintegrasikan dari sistem absensi" } },
             { "key": "403-9-B", "type": "boolean", "label": "Ada kecelakaan fatal?" },
             {
               "key": "403-9-C",
@@ -52,7 +54,8 @@ public static class SampleDefinitions
               "type": "rowsTable",
               "label": "Rincian kecelakaan",
               "rows": [ { "key": "r1", "label": "Kejadian 1" } ],
-              "columns": [ { "key": "jumlah", "label": "Jumlah", "valueType": "number" }, { "key": "ket", "label": "Keterangan" } ]
+              "columns": [ { "key": "jumlah", "label": "Jumlah", "valueType": "number" }, { "key": "ket", "label": "Keterangan" } ],
+              "telemetry": { "feasibility": "manual" }
             }
           ]
         }

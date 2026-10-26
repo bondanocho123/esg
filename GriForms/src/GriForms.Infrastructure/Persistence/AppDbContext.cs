@@ -106,6 +106,7 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ITenantContext
 
         // SQLite menyimpan decimal sebagai TEXT; total dihitung di memori (lihat catatan SQLite di bab 2)
         b.Entity<FormVersion>().Property(f => f.DefinitionJson).IsRequired();
+        b.Entity<FormVersion>().HasIndex(f => new { f.TopicId, f.VersionNo }).IsUnique();
 
         b.Entity<Site>().HasIndex(s => new { s.TenantId, s.Code }).IsUnique();
         b.Entity<ReportingPeriod>().HasIndex(p => new { p.TenantId, p.Year }).IsUnique();

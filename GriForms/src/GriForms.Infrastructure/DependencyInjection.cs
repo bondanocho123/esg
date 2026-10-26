@@ -53,6 +53,8 @@ public static class DependencyInjection
         services.AddScoped<ISubmissionQueries, SubmissionQueries>();
         services.AddScoped<IAnswerWriter, AnswerWriter>();
         services.AddScoped<ISubmissionWorkflow, SubmissionWorkflow>();
+        services.AddScoped<IReportingWorkspace, ReportingWorkspace>();
+        services.AddScoped<IReportingPeriods, ReportingPeriods>();
         services.AddScoped<IConsolidationQuery, ConsolidationQuery>();
         services.AddScoped<ITelemetryIngest, TelemetryIngest>();
         services.AddScoped<ITelemetryQueries, TelemetryQueries>();

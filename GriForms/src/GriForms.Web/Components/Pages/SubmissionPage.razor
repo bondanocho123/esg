@@ -1,0 +1,339 @@
+@page "/pelaporan/{SubmissionId:int}"
+
+@using System.Globalization
+@using Microsoft.AspNetCore.Authorization
+@using GriForms.Application.Abstractions
+@using GriForms.Application.Forms
+@using GriForms.Application.Submissions
+@using GriForms.Application.Validation
+@using GriForms.Domain.Enums
+@using GriForms.Web.Components.Forms
+
+@attribute [Authorize]
+@implements IDisposable
+
+@inject IReportingWorkspace Workspace
+@inject IValidationEngine Validator
+@inject FormContext FormContext
+@inject ILogger<SubmissionPage> Logger
+
+<PageTitle>@(_ws is { } t ? $"{t.TopicCode} · {t.Submission.SiteName} {t.Submission.Year}" : "Form pelaporan")</PageTitle>
+
+<GfHeader Title="@(_ws is { } h ? $"{h.TopicCode} {h.TopicName}" : "Form pelaporan")"
+          Subtitle="@(_ws is { } s ? $"{s.Submission.SiteName} · periode {s.Submission.Year} · versi form v{s.VersionNo}" : null)"
+          Icon="@Icons.Material.Filled.Assignment">
+    <Actions>
+        <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.ArrowBack"
+                  Href="pelaporan">Daftar form</GfButton>
+    </Actions>
+</GfHeader>
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger" role="alert">@_error</div>
+}
+@if (_notice is not null)
+{
+    <div class="alert alert-success" role="status">@_notice</div>
+}
+
+@if (!_loaded)
+{
+    <GfText Muted="true">Memuat form...</GfText>
+}
+else if (_ws is { } ws)
+{
+    var submission = ws.Submission;
+    <div class="mb-3 flex flex-wrap items-center gap-2">
+        <SubmissionStatusChip Status="submission.Status" />
+        @foreach (var role in ws.Roles)
+        {
+            <GfChip Variant="GfVariant.Secondary" Appearance="GfAppearance.Outlined">@Reporting.RoleLabel(role)</GfChip>
+        }
+        @if (ws.CanEdit)
+        {
+            <span class="text-xs text-muted" role="status" aria-live="polite">
+                @(_saving ? "Menyimpan..." : _savedAt is { } at ? $"Tersimpan otomatis {at:HH:mm:ss}" : "Perubahan tersimpan otomatis")
+            </span>
+        }
+        else if (submission.PeriodStatus == PeriodStatus.Closed)
+        {
+            <span class="text-xs text-muted">Periode sudah ditutup, form hanya bisa dibaca.</span>
+        }
+        else
+        {
+            <span class="text-xs text-muted">Hanya baca.</span>
+        }
+    </div>
+
+    @if (submission.Status == SubmissionStatus.Rejected && ws.History.LastOrDefault(h => h.To == nameof(SubmissionStatus.Rejected)) is { } rejected)
+    {
+        <div class="alert alert-warning" role="alert">
+            Ditolak oleh @rejected.Who pada @When(rejected.At): <strong>@rejected.Comment</strong>
+        </div>
+    }
+
+    @if (_showSubmitErrors && _validation.HasErrors)
+    {
+        <div class="alert alert-danger" role="alert">
+            Masih ada @_validation.Issues.Count(i => i.Severity == GriForms.Application.Validation.Severity.Error) isian yang perlu diperbaiki sebelum diajukan. Lihat pesan merah di bawah.
+        </div>
+    }
+
+    <div class="grid gap-4 xl:grid-cols-[1fr_20rem] xl:items-start">
+        <div>
+            <DynamicForm Definition="submission.Definition" State="_state" ReadOnly="!ws.CanEdit" Validation="_validation" />
+        </div>
+
+        <div class="xl:sticky xl:top-4">
+            @if (ws.Transitions.Count > 0)
+            {
+                <GfCard Title="Tindakan" Icon="@Icons.Material.Filled.TaskAlt" Variant="GfVariant.Secondary">
+                    @if (ws.Transitions.Any(t => t.RequiresComment))
+                    {
+                        <GfLabel For="comment">Komentar (wajib untuk menolak atau membuka kembali)</GfLabel>
+                        <textarea id="comment" class="form-control mb-3 h-auto min-h-20 py-2" @bind="_comment"></textarea>
+                    }
+                    <div class="flex flex-col gap-2">
+                        @foreach (var t in ws.Transitions)
+                        {
+                            <GfButton @key="t.To" FullWidth="true" Disabled="_busy"
+                                      Variant="@(t.RequiresComment ? GfVariant.Tertiary : GfVariant.Primary)"
+                                      Appearance="@(t.RequiresComment ? GfAppearance.Outlined : GfAppearance.Filled)"
+                                      StartIcon="@TransitionIcon(t.To)"
+                                      OnClick="() => TransitionAsync(t)">@TransitionLabel(t.To)</GfButton>
+                        }
+                    </div>
+                </GfCard>
+            }
+
+            <GfCard Title="Riwayat" Icon="@Icons.Material.Filled.History" Variant="GfVariant.Tertiary">
+                @if (ws.History.Count == 0)
+                {
+                    <GfText Typo="Typo.body2" Muted="true">Belum pernah diajukan.</GfText>
+                }
+                else
+                {
+                    <ol class="m-0 flex list-none flex-col gap-2 p-0 text-xs">
+                        @foreach (var h in ws.History.Reverse())
+                        {
+                            <li>
+                                <span class="font-semibold">@StatusLabel(h.To)</span>
+                                <span class="text-muted">· @When(h.At) · @h.Who</span>
+                                @if (h.Comment is not null)
+                                {
+                                    <div class="mt-0.5">@h.Comment</div>
+                                }
+                            </li>
+                        }
+                    </ol>
+                }
+            </GfCard>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int SubmissionId { get; set; }
+
+    private SubmissionWorkspace? _ws;
+    private FormState _state = new();
+    private AutosaveCoordinator? _autosave;
+    private ValidationResult _validation = ValidationResult.Empty;
+    private bool _showSubmitErrors;
+    private string? _comment;
+    private DateTime? _savedAt;
+    private bool _saving;
+    private bool _loaded;
+    private bool _busy;
+    private string? _error;
+    private string? _notice;
+
+    // Satu DbContext per circuit: simpan otomatis (di latar) dan tindakan pengguna tidak boleh berjalan bersamaan
+    private readonly SemaphoreSlim _dbGate = new(1, 1);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loaded = false;
+        _notice = null;
+        await RunAsync(LoadAsync, notice: null);
+        _loaded = true;
+    }
+
+    private async Task LoadAsync()
+    {
+        StopTracking();
+        _ws = await Workspace.GetSubmissionAsync(SubmissionId, CancellationToken.None);
+        var submission = _ws.Submission;
+        FormContext.Use(submission.SiteId, submission.Year);   // MonthlyTableField memakai tahun ini untuk kunci bulan
+
+        _state = new FormState();
+        _state.Load(submission.Cells);
+        _showSubmitErrors = false;
+        _savedAt = null;
+        Revalidate();
+
+        _state.Changed += OnStateChanged;
+        if (_ws.CanEdit)
+        {
+            _autosave = new AutosaveCoordinator(_state, new GatedWriter(this), SubmissionId);
+            _autosave.Saved += OnSaved;
+            _autosave.Failed += OnSaveFailed;
+        }
+    }
+
+    private void Revalidate() =>
+        _validation = _ws is null
+            ? ValidationResult.Empty
+            : Validator.Validate(_ws.Submission.Definition, _state.Cells, forSubmit: _showSubmitErrors);
+
+    private void OnStateChanged()
+    {
+        _saving = _ws?.CanEdit == true;
+        Revalidate();
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private void OnSaved() => _ = InvokeAsync(() =>
+    {
+        _saving = false;
+        _savedAt = _autosave?.SavedAt;
+        StateHasChanged();
+    });
+
+    private void OnSaveFailed(Exception ex) => _ = InvokeAsync(() =>
+    {
+        _saving = false;
+        if (ex is InvalidOperationException or UnauthorizedAccessException)
+            _error = ex.Message;
+        else
+        {
+            Logger.LogError(ex, "Simpan otomatis submission {SubmissionId} gagal", SubmissionId);
+            _error = "Perubahan terakhir belum tersimpan. Perubahan berikutnya akan mencoba menyimpannya lagi.";
+        }
+        StateHasChanged();
+    });
+
+    private async Task TransitionAsync(TransitionOption option)
+    {
+        if (option.RequiresComment && string.IsNullOrWhiteSpace(_comment))
+        {
+            _error = "Isi komentar untuk menolak atau membuka kembali form ini.";
+            return;
+        }
+
+        if (option.To == SubmissionStatus.Submitted)
+        {
+            _showSubmitErrors = true;
+            Revalidate();
+            if (_validation.HasErrors) return;
+        }
+
+        await RunAsync(async () =>
+        {
+            await FlushAsync();
+            await Workspace.TransitionAsync(SubmissionId, option.To, option.RequiresComment ? _comment : null, CancellationToken.None);
+            _comment = null;
+            await LoadAsync();
+        }, $"Status form menjadi {StatusLabel(option.To.ToString())}.");
+    }
+
+    // Isian yang belum terkirim simpan otomatis dikirim lebih dulu agar yang diajukan sama dengan yang terlihat
+    private async Task FlushAsync()
+    {
+        var changes = _state.TakeDirtyChanges();
+        if (changes.Count == 0) return;
+        try
+        {
+            await Workspace.SaveCellsAsync(SubmissionId, changes, CancellationToken.None);
+        }
+        catch
+        {
+            _state.MarkDirty(changes);
+            throw;
+        }
+    }
+
+    private async Task RunAsync(Func<Task> action, string? notice)
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        _notice = null;
+        await _dbGate.WaitAsync();
+        try
+        {
+            await action();
+            _notice = notice;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Operasi submission {SubmissionId} gagal", SubmissionId);
+            _error = "Operasi gagal. Coba lagi.";
+        }
+        finally
+        {
+            _dbGate.Release();
+            _busy = false;
+        }
+    }
+
+    private void StopTracking()
+    {
+        _state.Changed -= OnStateChanged;
+        if (_autosave is null) return;
+        _autosave.Saved -= OnSaved;
+        _autosave.Failed -= OnSaveFailed;
+        _autosave.Dispose();
+        _autosave = null;
+    }
+
+    public void Dispose() => StopTracking();
+
+    private static string When(DateTime utc) =>
+        utc.ToLocalTime().ToString("d MMM yyyy HH:mm", CultureInfo.GetCultureInfo("id-ID"));
+
+    private static string StatusLabel(string status) =>
+        Enum.TryParse<SubmissionStatus>(status, out var s) ? SubmissionStatusChip.Label(s) : status;
+
+    private static string TransitionLabel(SubmissionStatus to) => to switch
+    {
+        SubmissionStatus.Submitted => "Ajukan untuk ditinjau",
+        SubmissionStatus.Reviewed => "Tandai sudah ditinjau",
+        SubmissionStatus.Approved => "Setujui",
+        SubmissionStatus.Rejected => "Tolak dan kembalikan",
+        SubmissionStatus.Draft => "Buka kembali untuk diedit",
+        _ => to.ToString(),
+    };
+
+    private static string TransitionIcon(SubmissionStatus to) => to switch
+    {
+        SubmissionStatus.Submitted => Icons.Material.Filled.Send,
+        SubmissionStatus.Reviewed => Icons.Material.Filled.FactCheck,
+        SubmissionStatus.Approved => Icons.Material.Filled.Verified,
+        SubmissionStatus.Rejected => Icons.Material.Filled.Undo,
+        SubmissionStatus.Draft => Icons.Material.Filled.LockOpen,
+        _ => Icons.Material.Filled.TaskAlt,
+    };
+
+    // Simpan otomatis lewat IReportingWorkspace (hak Contributor diperiksa ulang) dan antre di _dbGate
+    private sealed class GatedWriter(SubmissionPage page) : IAnswerWriter
+    {
+        public async Task SaveCellsAsync(int submissionId, IEnumerable<CellChange> changes, CancellationToken ct)
+        {
+            await page._dbGate.WaitAsync(ct);
+            try
+            {
+                await page.Workspace.SaveCellsAsync(submissionId, changes, ct);
+            }
+            finally
+            {
+                page._dbGate.Release();
+            }
+        }
+    }
+}

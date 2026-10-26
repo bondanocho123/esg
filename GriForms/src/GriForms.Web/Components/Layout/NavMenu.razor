@@ -1,4 +1,5 @@
 @using GriForms.Application.Abstractions
+@using GriForms.Domain.Enums
 
 @inject ITenantSession Session
 
@@ -14,17 +15,36 @@
     }
     else
     {
-        <GfNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</GfNavLink>
-        <GfNavLink Href="counter" Icon="@Icons.Material.Filled.AddBox">Counter</GfNavLink>
-        <GfNavLink Href="weather" Icon="@Icons.Material.Filled.FormatListBulleted">Weather</GfNavLink>
-        <GfNavLink Href="auth" Icon="@Icons.Material.Filled.Lock">Auth Required</GfNavLink>
-        <GfNavLink Href="ui-kit" Icon="@Icons.Material.Filled.Palette">UI Kit</GfNavLink>
+        <GfNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Beranda</GfNavLink>
+
+        @* Pelaporan: satu tautan per tugas sesuai peran di tenant aktif; hak per site tetap diperiksa layanan *@
+        @if (Session.Current.Roles.Count > 0)
+        {
+            <p class="mx-5 mt-4 mb-1 text-[10px] font-semibold tracking-wider text-forest-icon/70 uppercase">Pelaporan</p>
+            @if (Session.Current.Has(RoleName.Contributor))
+            {
+                <GfNavLink Href="pelaporan/isi" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.EditNote">Isi form</GfNavLink>
+            }
+            @if (Session.Current.Has(RoleName.Reviewer))
+            {
+                <GfNavLink Href="pelaporan/tinjau" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.FactCheck">Tinjau form</GfNavLink>
+            }
+            @if (Session.Current.Has(RoleName.Approver))
+            {
+                <GfNavLink Href="pelaporan/setujui" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Verified">Setujui form</GfNavLink>
+            }
+            <GfNavLink Href="pelaporan" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Assignment">Semua form</GfNavLink>
+        }
+
         @if (Session.Current.TenantId is not null)
         {
             <GfNavLink Href="telemetry" Icon="@Icons.Material.Filled.Thermostat">Telemetry</GfNavLink>
         }
+
         @if (Session.Current.IsTenantAdmin)
         {
+            <p class="mx-5 mt-4 mb-1 text-[10px] font-semibold tracking-wider text-forest-icon/70 uppercase">Admin organisasi</p>
+            <GfNavLink Href="periode-pelaporan" Icon="@Icons.Material.Filled.Event">Periode pelaporan</GfNavLink>
             <GfNavLink Href="pengaturan-organisasi" Icon="@Icons.Material.Filled.Settings">Pengaturan Organisasi</GfNavLink>
         }
     }
@@ -34,10 +54,8 @@
         <p class="mx-5 mt-4 mb-1 text-[10px] font-semibold tracking-wider text-forest-icon/70 uppercase">Platform</p>
         <GfNavLink Href="organisasi" Icon="@Icons.Material.Filled.Domain">Organisasi</GfNavLink>
         <GfNavLink Href="definisi-form" Icon="@Icons.Material.Filled.Description">Definisi form</GfNavLink>
+        <GfNavLink Href="ui-kit" Icon="@Icons.Material.Filled.Palette">UI Kit</GfNavLink>
     }
-    <AuthorizeView>
-        <GfNavLink Href="telemetry" Icon="@Icons.Material.Filled.Thermostat">Telemetry</GfNavLink>
-    </AuthorizeView>
 
     <p class="mx-5 mt-4 mb-1 text-[10px] font-semibold tracking-wider text-forest-icon/70 uppercase">Akun</p>
     <AuthorizeView>

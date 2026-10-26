@@ -29,10 +29,15 @@ public sealed class FakeUserAccounts : IUserAccounts
         return Task.FromResult(_byEmail.GetValueOrDefault(email));
     }
 
+    // Dipanggil setelah akun dibuat, mis. untuk membatalkan request di tengah jalan
+    public Action? AfterCreate { get; set; }
+
     public Task<AccountInfo> CreateAsync(string email, string initialPassword, CancellationToken ct)
     {
         Created.Add((email, initialPassword));
-        return Task.FromResult(Add(email));
+        var account = Add(email);
+        AfterCreate?.Invoke();
+        return Task.FromResult(account);
     }
 
     // Mensimulasikan kompensasi yang gagal menghapus akun
@@ -44,6 +49,19 @@ public sealed class FakeUserAccounts : IUserAccounts
         Deleted.Add(userId);
         foreach (var email in _byEmail.Where(x => x.Value.UserId == userId).Select(x => x.Key).ToList())
             _byEmail.Remove(email);
+        return Task.CompletedTask;
+    }
+
+    public List<(string UserId, string Password)> Resets { get; } = new();
+
+    // Mensimulasikan Identity menolak kata sandi (mis. terlalu lemah)
+    public bool FailReset { get; set; }
+
+    public Task ResetPasswordAsync(string userId, string newPassword, CancellationToken ct)
+    {
+        if (FailReset) throw new InvalidOperationException("Kata sandi tidak bisa diatur ulang: terlalu lemah.");
+        if (!_byEmail.Values.Any(a => a.UserId == userId)) throw new InvalidOperationException("Akun tidak ditemukan.");
+        Resets.Add((userId, newPassword));
         return Task.CompletedTask;
     }
 

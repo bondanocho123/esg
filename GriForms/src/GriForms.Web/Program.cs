@@ -22,8 +22,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Host.UseSerilog((ctx, cfg) => cfg.ReadFrom.Configuration(ctx.Configuration));
 
 // Add services to the container.
+// Batas pesan SignalR dinaikkan dari 32 KB: editor Definisi form mengirim JSON utuh dari textarea
+// (FormCatalog.MaxDefinitionLength, ditambah ruang untuk escape karakter)
 builder.Services.AddRazorComponents()
-    .AddInteractiveServerComponents();
+    .AddInteractiveServerComponents()
+    .AddHubOptions(o => o.MaximumReceiveMessageSize = 1024 * 1024);
 builder.Services.AddMudServices();
 
 builder.Services.AddApplication();

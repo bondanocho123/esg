@@ -1,0 +1,326 @@
+@page "/definisi-form/{VersionId:int}"
+
+@using System.Globalization
+@using Microsoft.AspNetCore.Authorization
+@using GriForms.Application.Abstractions
+@using GriForms.Application.Forms
+@using GriForms.Domain.Enums
+@using GriForms.Web.Components.Forms
+@using GriForms.Web.Services
+
+@attribute [Authorize(Policy = TenancyPolicies.PlatformAdmin)]
+
+@inject IFormCatalog Catalog
+@inject FormDefinitionValidator Validator
+@inject NavigationManager Navigation
+@inject ILogger<FormDefinitionEditor> Logger
+
+<PageTitle>@(_detail is { } d ? $"{d.Summary.TopicCode} v{d.Summary.VersionNo}" : "Definisi form")</PageTitle>
+
+<GfHeader Title="@(_detail is { } h ? $"{h.Summary.TopicCode} {h.Summary.TopicName} · v{h.Summary.VersionNo}" : "Definisi form")"
+          Subtitle="Draft bisa diedit bebas. Versi terbit terkunci dan dipakai submission; perubahan berikutnya lewat Draft baru."
+          Icon="@Icons.Material.Filled.Description">
+    <Actions>
+        <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" StartIcon="@Icons.Material.Filled.ArrowBack"
+                  Href="definisi-form">Katalog</GfButton>
+    </Actions>
+</GfHeader>
+
+@if (_error is not null)
+{
+    <div class="alert alert-danger" role="alert">@_error</div>
+}
+@if (_notice is not null)
+{
+    <div class="alert alert-success" role="status">@_notice</div>
+}
+
+@if (!_loaded)
+{
+    <GfText Muted="true">Memuat definisi form...</GfText>
+}
+else if (_detail is { } detail)
+{
+    var summary = detail.Summary;
+    <GfCard Title="Versi" Icon="@Icons.Material.Filled.History" Variant="GfVariant.Secondary">
+        <HeaderActions>
+            <FormVersionStatusChip Status="summary.Status" />
+        </HeaderActions>
+        <ChildContent>
+            <dl class="m-0 grid gap-x-6 gap-y-1 text-xs sm:grid-cols-[auto_1fr]">
+                <dt class="text-muted">Standar</dt>
+                <dd class="m-0">@(summary.StandardRef.Length > 0 ? summary.StandardRef : "-")</dd>
+                <dt class="text-muted">Berlaku</dt>
+                <dd class="m-0">@summary.EffectiveFromYear–@(summary.EffectiveToYear?.ToString() ?? "sekarang")</dd>
+                <dt class="text-muted">Dipakai</dt>
+                <dd class="m-0">@summary.SubmissionCount submission, @summary.MappingCount pemetaan</dd>
+                <dt class="text-muted">Dibuat</dt>
+                <dd class="m-0">@When(detail.CreatedAt) oleh @detail.CreatedBy</dd>
+                @if (detail.PublishedAt is { } publishedAt)
+                {
+                    <dt class="text-muted">Diterbitkan</dt>
+                    <dd class="m-0">@When(publishedAt) oleh @detail.PublishedBy</dd>
+                }
+                @if (detail.RetiredAt is { } retiredAt)
+                {
+                    <dt class="text-muted">Dipensiunkan</dt>
+                    <dd class="m-0">@When(retiredAt) oleh @detail.RetiredBy</dd>
+                }
+            </dl>
+        </ChildContent>
+    </GfCard>
+
+    <div class="grid gap-4 lg:grid-cols-2 lg:items-start">
+        <GfCard Title="Definisi JSON" Icon="@Icons.Material.Filled.DataObject">
+            <HeaderActions>
+                @if (_dirty)
+                {
+                    <GfChip Variant="GfVariant.Tertiary" Icon="@Icons.Material.Filled.EditNote">Belum disimpan</GfChip>
+                }
+            </HeaderActions>
+            <ChildContent>
+                <textarea class="form-control h-auto min-h-[28rem] py-2 font-mono text-xs leading-relaxed"
+                          aria-label="Definisi form dalam JSON" spellcheck="false" wrap="off"
+                          readonly="@(!IsDraft)" value="@_json" @onchange="OnJsonChanged"></textarea>
+
+                <div class="mt-3 flex flex-wrap items-center gap-2">
+                    @if (IsDraft)
+                    {
+                        <GfButton StartIcon="@Icons.Material.Filled.Save" Disabled="_busy" OnClick="SaveAsync">Simpan draft</GfButton>
+                        <GfButton Appearance="GfAppearance.Outlined" StartIcon="@Icons.Material.Filled.FactCheck"
+                                  Disabled="_busy" OnClick="Check">Validasi</GfButton>
+                        <GfButton Variant="GfVariant.Secondary" StartIcon="@Icons.Material.Filled.Publish"
+                                  Disabled="@(_busy || _dirty || !(_check?.IsValid ?? false))"
+                                  title="@(_dirty ? "Simpan draft dulu" : null)"
+                                  OnClick="() => _confirmPublish = true">Terbitkan</GfButton>
+                    }
+                    else
+                    {
+                        <GfButton StartIcon="@Icons.Material.Filled.ContentCopy" Disabled="_busy" OnClick="CopyToDraftAsync">Salin jadi Draft baru</GfButton>
+                    }
+                </div>
+
+                @if (_confirmPublish && IsDraft)
+                {
+                    <div class="alert alert-warning mt-3" role="alert">
+                        <p class="m-0 mb-2">
+                            Terbitkan @summary.TopicCode v@(summary.VersionNo)? Versi terbit terkunci dan langsung dipakai submission baru
+                            tahun @summary.EffectiveFromYear–@(summary.EffectiveToYear?.ToString() ?? "seterusnya").
+                            Disarankan backup database sebelum menerbitkan.
+                        </p>
+                        <div class="flex gap-2">
+                            <GfButton Size="GfSize.Sm" Variant="GfVariant.Secondary" Disabled="_busy" OnClick="PublishAsync">Ya, terbitkan</GfButton>
+                            <GfButton Size="GfSize.Sm" Appearance="GfAppearance.Text" OnClick="() => _confirmPublish = false">Batal</GfButton>
+                        </div>
+                    </div>
+                }
+
+                @if (_check is { } check)
+                {
+                    @if (check.IsValid)
+                    {
+                        <div class="alert alert-success mt-3" role="status">Definisi valid.</div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-danger mt-3" role="alert">
+                            <p class="m-0 mb-1 font-semibold">@check.Issues.Count masalah harus diperbaiki sebelum diterbitkan:</p>
+                            <ul class="m-0 list-disc pl-5">
+                                @foreach (var issue in check.Issues)
+                                {
+                                    <li><code>@issue.Path</code> @issue.Message</li>
+                                }
+                            </ul>
+                        </div>
+                    }
+
+                    @if (check.Definition is { } def && TelemetrySummary(def) is { } readiness)
+                    {
+                        <div class="mt-3 rounded-gf border border-line p-3 text-xs" aria-label="Kesiapan telemetry">
+                            <p class="m-0 mb-2 font-semibold">Kesiapan telemetry</p>
+                            <div class="mb-2 flex flex-wrap gap-2">
+                                <GfChip Variant="GfVariant.Secondary" Appearance="GfAppearance.Outlined">Manual: @readiness.Manual</GfChip>
+                                <GfChip Icon="@Icons.Material.Filled.Sensors">Measured: @readiness.Measured.Count</GfChip>
+                                <GfChip Variant="GfVariant.Secondary" Icon="@Icons.Material.Filled.Functions">Derived: @readiness.Derived</GfChip>
+                                @if (readiness.Unclassified > 0)
+                                {
+                                    <GfChip Variant="GfVariant.Tertiary" Icon="@Icons.Material.Filled.HelpOutline">Belum diklasifikasikan: @readiness.Unclassified</GfChip>
+                                }
+                            </div>
+                            @if (readiness.Measured.Count > 0)
+                            {
+                                <table class="table m-0 text-xs">
+                                    <thead><tr><th>Item</th><th>Metrik</th><th>Satuan</th><th>Agregasi</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var m in readiness.Measured)
+                                        {
+                                            <tr><td><code>@m.Key</code></td><td>@m.Metric</td><td>@m.Unit</td><td>@m.Aggregation</td></tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            }
+                        </div>
+                    }
+                }
+            </ChildContent>
+        </GfCard>
+
+        <section aria-label="Pratinjau form">
+            <GfText Typo="Typo.subtitle2" GutterBottom="true">Pratinjau</GfText>
+            @if (_check?.Definition is { } definition)
+            {
+                <ErrorBoundary @ref="_preview">
+                    <ChildContent>
+                        <DynamicForm Definition="definition" State="_previewState" />
+                    </ChildContent>
+                    <ErrorContent>
+                        <div class="alert alert-danger" role="alert">Pratinjau gagal dirender. Periksa tipe dan isi pertanyaan.</div>
+                    </ErrorContent>
+                </ErrorBoundary>
+            }
+            else
+            {
+                <GfText Typo="Typo.body2" Muted="true">Pratinjau tampil setelah JSON bisa dibaca.</GfText>
+            }
+        </section>
+    </div>
+}
+
+@code {
+    [Parameter] public int VersionId { get; set; }
+
+    private FormVersionDetail? _detail;
+    private string _json = "";
+    private string _savedJson = "";
+    private DefinitionCheck? _check;
+    private FormState _previewState = new();
+    private ErrorBoundary? _preview;
+    private bool _dirty;
+    private bool _confirmPublish;
+    private bool _loaded;
+    private bool _busy;
+    private string? _error;
+    private string? _notice;
+
+    private bool IsDraft => _detail?.Summary.Status == FormVersionStatus.Draft;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loaded = false;
+        _notice = null;
+        await RunAsync(LoadAsync, notice: null);
+        _loaded = true;
+    }
+
+    private async Task LoadAsync()
+    {
+        _detail = await Catalog.GetVersionAsync(VersionId, CancellationToken.None);
+        _json = _savedJson = _detail.DefinitionJson;
+        _dirty = false;
+        _confirmPublish = false;
+        Check();
+    }
+
+    private void OnJsonChanged(ChangeEventArgs e)
+    {
+        _json = e.Value?.ToString() ?? "";
+        _dirty = _json != _savedJson;
+        _confirmPublish = false;
+        Check();
+    }
+
+    // Validasi lokal tanpa menyimpan; pratinjau dibuat ulang dengan jawaban kosong
+    private void Check()
+    {
+        if (_detail is null) return;
+        _check = Validator.Check(_json, _detail.Summary.TopicCode, _detail.Summary.VersionNo);
+        _previewState = new FormState();
+        _preview?.Recover();
+    }
+
+    private Task SaveAsync() => RunAsync(async () =>
+    {
+        await Catalog.SaveDraftAsync(VersionId, _json, CancellationToken.None);
+        await LoadAsync();
+    }, "Draft disimpan.");
+
+    private Task PublishAsync() => RunAsync(async () =>
+    {
+        _confirmPublish = false;
+        await Catalog.PublishAsync(VersionId, CancellationToken.None);
+        await LoadAsync();
+    }, "Versi diterbitkan dan kini terkunci.");
+
+    private async Task CopyToDraftAsync()
+    {
+        if (_detail is null) return;
+        int? id = null;
+        await RunAsync(async () => id = await Catalog.CreateDraftAsync(_detail.Summary.TopicId, VersionId, CancellationToken.None), notice: null);
+        if (id is { } versionId) Navigation.NavigateTo($"definisi-form/{versionId}");
+    }
+
+    // Ringkasan kelayakan telemetry per pertanyaan; baris tanpa telemetry sendiri mewarisi pertanyaannya.
+    // Null bila form tidak punya pertanyaan numerik maupun klasifikasi telemetry.
+    private static TelemetryReadiness? TelemetrySummary(FormDefinition definition)
+    {
+        int manual = 0, derived = 0, unclassified = 0;
+        var measured = new List<MeasuredItem>();
+        foreach (var q in definition.Disclosures.SelectMany(d => d.Questions ?? []))
+        {
+            if (!FormDefinitionValidator.NeedsTelemetry(q) && q.Telemetry is null) continue;
+            var t = q.Telemetry;
+            switch (t?.Feasibility)
+            {
+                case null: unclassified++; break;
+                case TelemetryFeasibility.Manual: manual++; break;
+                case TelemetryFeasibility.Derived: derived++; break;
+                case TelemetryFeasibility.Measured when !string.IsNullOrWhiteSpace(t.Metric):
+                    measured.Add(new(q.Key, t.Metric, t.Unit, t.Aggregation));
+                    break;
+                case TelemetryFeasibility.Measured:
+                    foreach (var row in q.Rows ?? [])
+                        if (row.Telemetry?.Feasibility is null or TelemetryFeasibility.Measured)
+                            measured.Add(new($"{q.Key}/{row.Key}", row.Telemetry?.Metric, row.Telemetry?.Unit ?? t.Unit,
+                                row.Telemetry?.Aggregation ?? t.Aggregation));
+                    break;
+            }
+        }
+        return manual + derived + unclassified + measured.Count == 0
+            ? null
+            : new TelemetryReadiness(manual, derived, unclassified, measured);
+    }
+
+    private sealed record MeasuredItem(string Key, string? Metric, string? Unit, string? Aggregation);
+
+    private sealed record TelemetryReadiness(int Manual, int Derived, int Unclassified, IReadOnlyList<MeasuredItem> Measured);
+
+    private static string When(DateTime utc) =>
+        utc.ToLocalTime().ToString("d MMM yyyy HH:mm", CultureInfo.GetCultureInfo("id-ID"));
+
+    // Semua operasi berurutan: satu DbContext per circuit tidak boleh dipakai bersamaan
+    private async Task RunAsync(Func<Task> action, string? notice)
+    {
+        if (_busy) return;
+        _busy = true;
+        _error = null;
+        _notice = null;
+        try
+        {
+            await action();
+            _notice = notice;
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or UnauthorizedAccessException)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Operasi editor Definisi form gagal");
+            _error = "Operasi gagal. Coba lagi.";
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

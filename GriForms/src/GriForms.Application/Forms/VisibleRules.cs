@@ -23,6 +23,14 @@ public static partial class VisibleRules
         return match.Groups["op"].Value == "==" ? equal : !equal;
     }
 
+    // Dipakai FormDefinitionValidator sebelum publish: sintaks dikenal dan kunci yang dirujuk
+    public static bool TryParse(string expression, out string key)
+    {
+        var match = Expression().Match(expression);
+        key = match.Success ? match.Groups["key"].Value : "";
+        return match.Success;
+    }
+
     [GeneratedRegex(@"^\s*(?<key>[\w\-/]+)\s*(?<op>==|!=)\s*'(?<value>[^']*)'\s*$")]
     private static partial Regex Expression();
 }

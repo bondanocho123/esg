@@ -14,10 +14,14 @@ public sealed class ConsolidationQuery(IAppReadDb db) : IConsolidationQuery
         var approved = db.Submissions.AsNoTracking()
             .Where(s => s.TopicId == topicId && s.Period.Year == year && s.Status == SubmissionStatus.Approved);
 
-        var rows = await approved
-            .SelectMany(s => s.Answers.Select(a => new ConsolidatedRow(
-                s.SiteId, s.Site.Name, a.DisclosureNo, a.QuestionKey,
-                a.PeriodKey, a.NumberValue, a.StringValue, a.Unit, a.ValueState)))
+        // Dimulai dari Answer, bukan SelectMany dari Submission: koleksi Answers yang ikut difilter tenant
+        // menjadi subquery berkorelasi (APPLY) yang tidak didukung SQLite
+        var rows = await db.Answers.AsNoTracking()
+            .Where(a => a.Submission.TopicId == topicId && a.Submission.Period.Year == year
+                     && a.Submission.Status == SubmissionStatus.Approved)
+            .Select(a => new ConsolidatedRow(
+                a.Submission.SiteId, a.Submission.Site.Name, a.DisclosureNo, a.QuestionKey,
+                a.PeriodKey, a.NumberValue, a.StringValue, a.Unit, a.ValueState))
             .ToListAsync(ct);
 
         var approvedIds = await approved.Select(s => s.SiteId).Distinct().ToListAsync(ct);

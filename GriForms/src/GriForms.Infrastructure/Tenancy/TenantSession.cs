@@ -44,10 +44,16 @@ public sealed class TenantSession(AppDbContext db, TenantContext tenant, IClock 
         tenant.Use(active?.Id);
 
         // Setelah tenant.Use: UserSiteRoles sudah dibatasi ke tenant aktif
-        var isTenantAdmin = active is not null && await db.UserSiteRoles.AsNoTracking()
-            .AnyAsync(r => r.UserId == userId && r.Role == RoleName.Admin && r.SiteId == null, ct);
+        var roles = active is null ? [] : await db.UserSiteRoles.AsNoTracking()
+            .Where(r => r.UserId == userId)
+            .Select(r => new { r.Role, r.SiteId })
+            .ToListAsync(ct);
+        var isTenantAdmin = roles.Any(r => r.Role == RoleName.Admin && r.SiteId == null);
 
-        Current = new SessionInfo(userId, active, memberships, isPlatformAdmin, isTenantAdmin, MustChangePassword: false);
+        Current = new SessionInfo(userId, active, memberships, isPlatformAdmin, isTenantAdmin, MustChangePassword: false)
+        {
+            Roles = roles.Select(r => r.Role).ToHashSet(),
+        };
         return Current;
     }
 

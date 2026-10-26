@@ -31,6 +31,12 @@ public class Submission : ITenantOwned
         [(SubmissionStatus.Approved,  SubmissionStatus.Draft)]     = RoleName.Admin,
     };
 
+    // Transisi yang mungkin dari status tertentu beserta peran yang berhak; dipakai UI untuk menampilkan tombol
+    public static IEnumerable<(SubmissionStatus To, RoleName Role)> TransitionsFrom(SubmissionStatus from) =>
+        Allowed.Where(x => x.Key.From == from).Select(x => (x.Key.To, x.Value));
+
+    public static bool RequiresComment(SubmissionStatus to) => to is SubmissionStatus.Rejected or SubmissionStatus.Draft;
+
     public void Transition(SubmissionStatus to, RoleName actorRole, string? comment)
     {
         // Period bisa belum dimuat (null) pada entity yang diambil tanpa Include; pemeriksaan penuh ada di use case.
@@ -40,7 +46,7 @@ public class Submission : ITenantOwned
         if (!Allowed.TryGetValue((Status, to), out var required) || required != actorRole)
             throw new InvalidOperationException($"Transisi {Status} ke {to} tidak diizinkan untuk peran {actorRole}.");
 
-        if ((to is SubmissionStatus.Rejected or SubmissionStatus.Draft) && string.IsNullOrWhiteSpace(comment))
+        if (RequiresComment(to) && string.IsNullOrWhiteSpace(comment))
             throw new InvalidOperationException("Komentar atau alasan wajib saat menolak atau membuka kembali.");
 
         Status = to;

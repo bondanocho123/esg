@@ -1,7 +1,6 @@
 using GriForms.Application.Tenancy;
 using GriForms.Domain.Entities;
 using GriForms.Domain.Enums;
-using GriForms.Infrastructure.Forms;
 using GriForms.Infrastructure.Persistence;
 using GriForms.Infrastructure.Tenancy;
 using GriForms.Tests.Support;
@@ -116,9 +115,9 @@ public class OrganizationAdminTests : IDisposable
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
             organizations.AddSiteAsync(A, new SiteInput("9", "X", null), CancellationToken.None));
         await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
-            new FormCatalog(ctx, new FakeUser("admin-a")).GetVersionsAsync(CancellationToken.None));
+            FormCatalogTests.Create(ctx, "admin-a", _accounts, _db.Clock).GetVersionsAsync(CancellationToken.None));
 
-        Assert.Empty(await new FormCatalog(ctx, new FakeUser("platform")).GetVersionsAsync(CancellationToken.None));
+        Assert.Empty(await FormCatalogTests.Create(ctx, "platform", _accounts, _db.Clock).GetVersionsAsync(CancellationToken.None));
     }
 
     [Fact]
@@ -217,11 +216,13 @@ public class OrganizationAdminTests : IDisposable
         var settings = Settings("admin-a", A, out var ctx);
         await using var _ = ctx;
         _accounts.FailDelete = true;
+        // Request dibatalkan tepat setelah akun dibuat: simpanan peran gagal setelah akun dan profil terlanjur ada.
+        // Membatalkan sebelum memanggil tidak menguji apa pun, karena pemeriksaan hak Admin sudah berhenti lebih dulu.
         using var cancelled = new CancellationTokenSource();
-        cancelled.Cancel();   // simpanan peran gagal setelah akun dan profil terlanjur dibuat
+        _accounts.AfterCreate = cancelled.Cancel;
 
         await Assert.ThrowsAnyAsync<Exception>(() =>
-            settings.AddMemberAsync("baru@jre.com", "Awal-12345!", RoleName.Reviewer, null, cancelled.Token));
+            settings.AddMemberAsync("baru@jre.com", "Awal-12345!", RoleName.Reviewer, siteId: 1, cancelled.Token));
 
         using var check = _db.CreateContext(new FakeTenant(null));
         var profile = Assert.Single(check.UserProfiles.Where(p => p.UserId == "u-baru@jre.com"));
@@ -234,10 +235,10 @@ public class OrganizationAdminTests : IDisposable
         var settings = Settings("admin-a", A, out var ctx);
         await using var _ = ctx;
         using var cancelled = new CancellationTokenSource();
-        cancelled.Cancel();
+        _accounts.AfterCreate = cancelled.Cancel;   // simpanan peran gagal setelah akun dibuat
 
-        await Assert.ThrowsAnyAsync<Exception>(() =>
-            settings.AddMemberAsync("baru@jre.com", "Awal-12345!", RoleName.Reviewer, null, cancelled.Token));
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(() =>
+            settings.AddMemberAsync("baru@jre.com", "Awal-12345!", RoleName.Reviewer, siteId: 1, cancelled.Token));
 
         Assert.Equal(new[] { "u-baru@jre.com" }, _accounts.Deleted);
         using var check = _db.CreateContext(new FakeTenant(null));
@@ -258,6 +259,87 @@ public class OrganizationAdminTests : IDisposable
         using var check = _db.CreateContext(A);
         Assert.Single(check.Sites, s => s.Code == "1");
         Assert.Equal(before, check.AuditEntries.Count());
+    }
+
+    private void Membership(string userId, int tenantId, RoleName role = RoleName.ReportViewer)
+    {
+        using var db = _db.CreateContext(tenantId);
+        db.Add(new UserSiteRole { UserId = userId, Role = role });
+        db.SaveChanges();
+    }
+
+    [Fact]
+    public async Task Tenant_admin_resets_member_password_and_forces_change_at_next_login()
+    {
+        var member = _accounts.Add("reviewer@jre.com");
+        Membership(member.UserId, A);
+        var settings = Settings("admin-a", A, out var ctx);
+        await using var _ = ctx;
+
+        await settings.ResetPasswordAsync(member.UserId, "Sementara-123!", CancellationToken.None);
+
+        Assert.Equal(new[] { (member.UserId, "Sementara-123!") }, _accounts.Resets);
+        using var check = _db.CreateContext();
+        Assert.True(check.UserProfiles.Single(p => p.UserId == member.UserId).MustChangePassword);
+        var audit = Assert.Single(check.AuditEntries.Where(e => e.Action == "PasswordReset"));
+        Assert.Equal((member.UserId, "admin-a", (string?)null), (audit.EntityId, audit.UserId, audit.NewValue));   // kata sandi tidak dicatat
+    }
+
+    [Fact]
+    public async Task Password_reset_is_limited_to_members_who_only_belong_to_this_tenant()
+    {
+        var outsider = _accounts.Add("luar@acme.co");          // bukan anggota tenant A
+        var platform = _accounts.Add("platform@griforms.id");  // PlatformAdmin yang juga anggota A
+        var shared = _accounts.Add("ganda@jre.com");           // anggota A dan tenant lain
+        Membership(platform.UserId, A);
+        Membership(shared.UserId, A);
+        int tenantB;
+        using (var db = _db.CreateContext())
+        {
+            var tenant = new Tenant { Code = "ACME", Name = "Acme Mining" };
+            db.Add(tenant);
+            db.Add(new PlatformAdmin { UserId = platform.UserId, GrantedAt = _db.Clock.UtcNow });
+            db.SaveChanges();
+            tenantB = tenant.Id;
+        }
+        Membership(shared.UserId, tenantB, RoleName.Admin);
+
+        var settings = Settings("admin-a", A, out var ctx);
+        await using (ctx)
+        {
+            foreach (var userId in new[] { outsider.UserId, platform.UserId, shared.UserId, "admin-a" })
+                await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                    settings.ResetPasswordAsync(userId, "Sementara-123!", CancellationToken.None));
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                settings.ResetPasswordAsync(shared.UserId, " ", CancellationToken.None));
+        }
+
+        var notAdmin = Settings(shared.UserId, A, out var ctx2);
+        await using (ctx2)
+            await Assert.ThrowsAsync<UnauthorizedAccessException>(() =>
+                notAdmin.ResetPasswordAsync(platform.UserId, "Sementara-123!", CancellationToken.None));
+
+        Assert.Empty(_accounts.Resets);
+        using var check = _db.CreateContext(new FakeTenant(null));
+        Assert.DoesNotContain(check.UserProfiles.ToList(), p => p.MustChangePassword);
+    }
+
+    [Fact]
+    public async Task Rejected_temporary_password_restores_previous_flag()
+    {
+        var member = _accounts.Add("reviewer@jre.com");
+        Membership(member.UserId, A);
+        _accounts.FailReset = true;
+        var settings = Settings("admin-a", A, out var ctx);
+        await using var _ = ctx;
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            settings.ResetPasswordAsync(member.UserId, "lemah", CancellationToken.None));
+
+        Assert.Contains("terlalu lemah", ex.Message);
+        using var check = _db.CreateContext();
+        Assert.False(check.UserProfiles.Single(p => p.UserId == member.UserId).MustChangePassword);
+        Assert.Contains(check.AuditEntries.ToList(), e => e.Action == "PasswordResetFailed" && e.EntityId == member.UserId);
     }
 
     public void Dispose() => _db.Dispose();

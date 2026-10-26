@@ -110,6 +110,23 @@ public class TenantSessionTests : IDisposable
     }
 
     [Fact]
+    public async Task Roles_for_menu_come_from_active_tenant_only()
+    {
+        Member("u1", A, RoleName.Contributor);
+        Member("u1", A, RoleName.Admin);
+        Member("u1", _b, RoleName.ReportViewer);
+        Profile("u1", activeTenantId: A);
+
+        await using var circuit = NewCircuit();
+        var info = await circuit.Session.StartAsync("u1", CancellationToken.None);
+
+        Assert.Equal(new[] { RoleName.Contributor, RoleName.Admin }.Order(), info.Roles.Order());
+        Assert.True(info.Has(RoleName.Contributor));
+        Assert.False(info.Has(RoleName.ReportViewer));   // peran di tenant lain tidak ikut
+        Assert.True(info.IsTenantAdmin);
+    }
+
+    [Fact]
     public async Task Without_valid_preference_first_active_membership_by_name_is_used_and_saved()
     {
         Member("u1", A);

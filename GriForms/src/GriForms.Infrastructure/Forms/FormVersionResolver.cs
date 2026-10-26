@@ -12,6 +12,7 @@ public sealed class FormVersionResolver(IAppReadDb db) : IFormVersionResolver
             .AsNoTracking()
             .Where(v => v.TopicId == topicId
                      && v.IsPublished
+                     && v.RetiredAt == null
                      && v.EffectiveFromYear <= year
                      && (v.EffectiveToYear == null || v.EffectiveToYear >= year))
             .OrderByDescending(v => v.VersionNo)
