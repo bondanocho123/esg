@@ -34,6 +34,10 @@ public class ReportingPageTests : MudBunitContext
         return Render<Reporting>();
     }
 
+    // Kolom Topik di tabel kartu site (tree juga memuat nama topik, jadi Markup tidak cukup)
+    private static IReadOnlyList<string> TableTopics(IRenderedComponent<Reporting> cut) =>
+        cut.FindAll("table tbody tr td:first-child").Select(td => td.TextContent.Trim()).ToList();
+
     private static IReadOnlyList<string> CardTitles(IRenderedComponent<Reporting> cut) =>
         cut.FindAll("section h2").Select(h => h.TextContent.Trim()).ToList();
 
@@ -42,7 +46,7 @@ public class ReportingPageTests : MudBunitContext
     {
         var cut = RenderAs(RoleName.Admin);
 
-        Assert.Empty(cut.FindAll("#category-filter"));
+        Assert.Empty(cut.FindAll("#tree-all"));   // tree hanya untuk Contributor/Reviewer/Approver
         Assert.Equal(new[] { "", "1", "2", "10" }, cut.FindAll("#site-filter option").Select(o => o.GetAttribute("value")));
         Assert.Equal(new[] { "Site 1 (1)", "Site 2 (2)", "Site 10 (10)" }, CardTitles(cut));
 
@@ -52,19 +56,48 @@ public class ReportingPageTests : MudBunitContext
     }
 
     [Fact]
-    public void Contributor_filters_by_category_and_action_counts_follow_the_filter()
+    public void Contributor_tree_lists_categories_with_topic_codes_in_code_order()
     {
         var cut = RenderAs(RoleName.Contributor);
 
         Assert.Empty(cut.FindAll("#site-filter"));
-        Assert.Equal(new[] { "", "Env", "Soc" }, cut.FindAll("#category-filter option").Select(o => o.GetAttribute("value")));
-        Assert.Contains("Perlu diisi (2)", cut.Markup);
+        Assert.Equal(new[] { "Env", "Soc" }, cut.FindAll("[data-category]").Select(b => b.GetAttribute("data-category")));
+        Assert.Equal(new[] { "302", "403", "1001" }, cut.FindAll("[data-topic]").Select(b => b.GetAttribute("data-topic")));
+        Assert.Equal("true", cut.Find("#tree-all").GetAttribute("aria-current"));
+    }
 
-        cut.Find("#category-filter").Change("Env");
+    [Fact]
+    public void Selecting_category_or_code_filters_forms_and_action_counts()
+    {
+        var cut = RenderAs(RoleName.Contributor);
+        Assert.Contains("Perlu diisi (3)", cut.Markup);
+
+        cut.Find("[data-category='Env']").Click();
 
         Assert.Contains("Perlu diisi (1)", cut.Markup);
-        Assert.DoesNotContain("Topik 403", cut.Markup);
-        Assert.Contains("Topik 302", cut.Markup);
+        Assert.Equal(new[] { "302 Topik 302" }, TableTopics(cut));
+
+        cut.Find("[data-topic='1001']").Click();
+
+        Assert.Equal("true", cut.Find("[data-topic='1001']").GetAttribute("aria-current"));
+        Assert.Equal(new[] { "1001 Topik 1001" }, TableTopics(cut));
+        Assert.Contains("Perlu diisi (1)", cut.Markup);
+
+        cut.Find("#tree-all").Click();
+        Assert.Contains("Perlu diisi (3)", cut.Markup);
+    }
+
+    [Fact]
+    public void Category_menu_collapses_and_expands_its_codes()
+    {
+        var cut = RenderAs(RoleName.Reviewer);
+        var toggle = cut.Find("button[aria-label='Tutup Soc']");
+
+        toggle.Click();
+
+        Assert.Equal(new[] { "302" }, cut.FindAll("[data-topic]").Select(b => b.GetAttribute("data-topic")));
+        cut.Find("button[aria-label='Buka Soc']").Click();
+        Assert.Equal(3, cut.FindAll("[data-topic]").Count);
     }
 
     private sealed class FakeWorkspace : IReportingWorkspace
@@ -75,6 +108,7 @@ public class ReportingPageTests : MudBunitContext
             [
                 Row(1, "1", "302", "Env", NextAction.Start),
                 Row(1, "1", "403", "Soc", NextAction.Start),
+                Row(1, "1", "1001", "Soc", NextAction.Start),
                 Row(2, "2", "403", "Soc"),
                 Row(10, "10", "403", "Soc"),
             ]));
