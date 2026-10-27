@@ -326,7 +326,7 @@ public sealed class FormCatalog(
         if (input is null) throw new InvalidOperationException("Data topik wajib diisi.");
         return (TenancyRules.Code(input.Code, "Kode topik"),
             TenancyRules.Name(input.Category, "Kategori topik"),
-            TenancyRules.Name(input.Name, "Nama topik"));
+            TenancyRules.Name(input.Name, "Nama topik", TenancyRules.MaxTopicNameLength));
     }
 
     // Hanya versionNo yang diganti; urutan field dan field lain di definisi sumber dipertahankan

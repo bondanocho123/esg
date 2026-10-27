@@ -1,5 +1,6 @@
 ﻿@page "/"
 @layout LandingLayout
+@inject IJSRuntime Js
 
 <PageTitle>Global Report Initiative</PageTitle>
 
@@ -7,38 +8,45 @@
     <meta name="description" content="Pelaporan ESG berbasis standar GRI. Form per site dan tahun, definisi berversi, serta alur dari draf sampai disetujui." />
 </HeadContent>
 
-<section class="relative overflow-hidden border-b border-line">
-    <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(46rem_20rem_at_100%_0%,rgba(56,189,248,0.16),transparent),radial-gradient(36rem_18rem_at_0%_100%,rgba(34,197,94,0.16),transparent)]" aria-hidden="true"></div>
+<section class="relative isolate overflow-hidden border-b border-white/10 bg-forest text-on-forest">
+    <video @ref="_hero"
+           class="pointer-events-none absolute inset-0 size-full object-cover motion-reduce:hidden"
+           autoplay muted loop playsinline preload="auto" disablepictureinpicture
+           aria-hidden="true">
+        <source src="@Assets["media/hero-loop.mp4"]" type="video/mp4" />
+    </video>
+    <div class="pointer-events-none absolute inset-0 bg-linear-to-r from-forest/55 via-forest/25 to-transparent" aria-hidden="true"></div>
+    <div class="pointer-events-none absolute inset-0 bg-linear-to-t from-forest/30 via-transparent to-forest/15" aria-hidden="true"></div>
     <div class="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:py-20">
         <div>
-            <p class="mb-3 inline-flex items-center gap-2 rounded-full border border-line bg-surface px-2.5 py-1 text-[11px] font-semibold tracking-wide text-primary-dark uppercase">
+            <p class="mb-3 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-2.5 py-1 text-[11px] font-semibold tracking-wide text-sprout uppercase">
                 <span class="size-1.5 rounded-full bg-sprout" aria-hidden="true"></span>
                 Pelaporan ESG · standar GRI
             </p>
 
             <AuthorizeView>
                 <Authorized>
-                    <h1 class="mb-4 max-w-xl text-4xl leading-[1.12] font-semibold tracking-tight text-balance text-ink sm:text-5xl">Lanjutkan pelaporan periode ini.</h1>
-                    <p class="mb-6 max-w-xl text-base leading-relaxed text-muted">Isi, tinjau, atau setujui form untuk site tempat Anda punya peran. Draf tersimpan otomatis, dan tahun yang sudah ditutup hanya bisa dibaca.</p>
+                    <h1 class="mb-4 max-w-xl text-4xl leading-[1.12] font-semibold tracking-tight text-balance text-white sm:text-5xl">Lanjutkan pelaporan periode ini.</h1>
+                    <p class="mb-6 max-w-xl text-base leading-relaxed text-on-forest/85">Isi, tinjau, atau setujui form untuk site tempat Anda punya peran. Draf tersimpan otomatis, dan tahun yang sudah ditutup hanya bisa dibaca.</p>
                     <div class="flex flex-wrap items-center gap-3">
                         <a href="pelaporan" class="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-on-primary no-underline shadow-sm shadow-primary/30 hover:bg-primary-dark hover:text-on-primary hover:no-underline">
                             Buka pelaporan
                             <GfIcon Icon="@Icons.Material.Filled.ArrowForward" Size="GfSize.Sm" />
                         </a>
-                        <a href="#alur" class="inline-flex h-11 items-center rounded-lg border border-primary/40 bg-surface px-5 text-sm font-semibold text-primary no-underline hover:bg-primary/10 hover:text-primary hover:no-underline">Lihat alur</a>
+                        <a href="#alur" class="inline-flex h-11 items-center rounded-lg border border-white/25 bg-white/10 px-5 text-sm font-semibold text-white no-underline hover:bg-white/15 hover:text-white hover:no-underline">Lihat alur</a>
                     </div>
                 </Authorized>
                 <NotAuthorized>
-                    <h1 class="mb-4 max-w-xl text-4xl leading-[1.12] font-semibold tracking-tight text-balance text-ink sm:text-5xl">Data ESG tiap site, satu alur sampai disetujui.</h1>
-                    <p class="mb-6 max-w-xl text-base leading-relaxed text-muted">Form GRI diisi per site dan tahun, lalu melewati pengajuan, tinjauan, dan persetujuan. Definisi form berversi, sehingga perubahan standar tidak menimpa data lama.</p>
+                    <h1 class="mb-4 max-w-xl text-4xl leading-[1.12] font-semibold tracking-tight text-balance text-white sm:text-5xl">Data ESG tiap site, satu alur sampai disetujui.</h1>
+                    <p class="mb-6 max-w-xl text-base leading-relaxed text-on-forest/85">Form GRI diisi per site dan tahun, lalu melewati pengajuan, tinjauan, dan persetujuan. Definisi form berversi, sehingga perubahan standar tidak menimpa data lama.</p>
                     <div class="flex flex-wrap items-center gap-3">
                         <a href="Account/Login" class="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-on-primary no-underline shadow-sm shadow-primary/30 hover:bg-primary-dark hover:text-on-primary hover:no-underline">
                             <GfIcon Icon="@Icons.Material.Filled.Login" Size="GfSize.Sm" />
                             Masuk
                         </a>
-                        <a href="#alur" class="inline-flex h-11 items-center rounded-lg border border-primary/40 bg-surface px-5 text-sm font-semibold text-primary no-underline hover:bg-primary/10 hover:text-primary hover:no-underline">Lihat alur</a>
+                        <a href="#alur" class="inline-flex h-11 items-center rounded-lg border border-white/25 bg-white/10 px-5 text-sm font-semibold text-white no-underline hover:bg-white/15 hover:text-white hover:no-underline">Lihat alur</a>
                     </div>
-                    <p class="mt-4 mb-0 text-[12px] text-muted">Akun dibuat oleh admin organisasi. Pendaftaran mandiri tidak dibuka.</p>
+                    <p class="mt-4 mb-0 text-[12px] text-on-forest/70">Akun dibuat oleh admin organisasi. Pendaftaran mandiri tidak dibuka.</p>
                 </NotAuthorized>
             </AuthorizeView>
         </div>
@@ -242,3 +250,27 @@
         </AuthorizeView>
     </div>
 </section>
+
+@code {
+    private ElementReference _hero;
+    private bool _heroQuiet;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_heroQuiet)
+            return;
+
+        try
+        {
+            // Blazor memasang atribut muted, tetapi properti media tetap bunyi. Paksa senyap setelah render.
+            await Js.InvokeVoidAsync("gfQuietVideo", _hero);
+            _heroQuiet = true;
+        }
+        catch (InvalidOperationException)
+        {
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+}
