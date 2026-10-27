@@ -11,6 +11,7 @@ internal static partial class TenancyRules
 {
     private const int MaxCodeLength = 20;
     private const int MaxNameLength = 100;
+    public const int MaxTopicNameLength = 300;
     private const int MaxLocationLength = 200;
 
     [GeneratedRegex("^[A-Za-z0-9][A-Za-z0-9._-]*$")]
@@ -26,13 +27,13 @@ internal static partial class TenancyRules
         return code;
     }
 
-    public static string Name(string? name, string what)
+    public static string Name(string? name, string what, int maxLength = MaxNameLength)
     {
         name = name?.Trim() ?? "";
         if (name.Length == 0)
             throw new InvalidOperationException($"{what} wajib diisi.");
-        if (name.Length > MaxNameLength)
-            throw new InvalidOperationException($"{what} maksimal {MaxNameLength} karakter.");
+        if (name.Length > maxLength)
+            throw new InvalidOperationException($"{what} maksimal {maxLength} karakter.");
         return name;
     }
 

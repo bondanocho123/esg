@@ -34,3 +34,11 @@
     media.addEventListener('change', apply);
     apply();
 })();
+
+// Video latar hero: atribut muted di markup tidak mematikan suara setelah render Blazor.
+window.gfQuietVideo = (video) => {
+    if (!video) return;
+    video.muted = true;
+    video.defaultMuted = true;
+    if (video.paused) video.play().catch(() => {});
+};
