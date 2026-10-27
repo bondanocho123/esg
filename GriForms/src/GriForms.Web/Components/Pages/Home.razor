@@ -1,7 +1,244 @@
 ﻿@page "/"
+@layout LandingLayout
 
-<PageTitle>Home</PageTitle>
+<PageTitle>Global Report Initiative</PageTitle>
 
-<h1>Hello, world!</h1>
+<HeadContent>
+    <meta name="description" content="Pelaporan ESG berbasis standar GRI. Form per site dan tahun, definisi berversi, serta alur dari draf sampai disetujui." />
+</HeadContent>
 
-Welcome to your new app.
+<section class="relative overflow-hidden border-b border-line">
+    <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(46rem_20rem_at_100%_0%,rgba(56,189,248,0.16),transparent),radial-gradient(36rem_18rem_at_0%_100%,rgba(34,197,94,0.16),transparent)]" aria-hidden="true"></div>
+    <div class="relative mx-auto grid max-w-6xl items-center gap-12 px-4 py-14 sm:px-6 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] lg:py-20">
+        <div>
+            <p class="mb-3 inline-flex items-center gap-2 rounded-full border border-line bg-surface px-2.5 py-1 text-[11px] font-semibold tracking-wide text-primary-dark uppercase">
+                <span class="size-1.5 rounded-full bg-sprout" aria-hidden="true"></span>
+                Pelaporan ESG · standar GRI
+            </p>
+
+            <AuthorizeView>
+                <Authorized>
+                    <h1 class="mb-4 max-w-xl text-4xl leading-[1.12] font-semibold tracking-tight text-balance text-ink sm:text-5xl">Lanjutkan pelaporan periode ini.</h1>
+                    <p class="mb-6 max-w-xl text-base leading-relaxed text-muted">Isi, tinjau, atau setujui form untuk site tempat Anda punya peran. Draf tersimpan otomatis, dan tahun yang sudah ditutup hanya bisa dibaca.</p>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <a href="pelaporan" class="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-on-primary no-underline shadow-sm shadow-primary/30 hover:bg-primary-dark hover:text-on-primary hover:no-underline">
+                            Buka pelaporan
+                            <GfIcon Icon="@Icons.Material.Filled.ArrowForward" Size="GfSize.Sm" />
+                        </a>
+                        <a href="#alur" class="inline-flex h-11 items-center rounded-lg border border-primary/40 bg-surface px-5 text-sm font-semibold text-primary no-underline hover:bg-primary/10 hover:text-primary hover:no-underline">Lihat alur</a>
+                    </div>
+                </Authorized>
+                <NotAuthorized>
+                    <h1 class="mb-4 max-w-xl text-4xl leading-[1.12] font-semibold tracking-tight text-balance text-ink sm:text-5xl">Data ESG tiap site, satu alur sampai disetujui.</h1>
+                    <p class="mb-6 max-w-xl text-base leading-relaxed text-muted">Form GRI diisi per site dan tahun, lalu melewati pengajuan, tinjauan, dan persetujuan. Definisi form berversi, sehingga perubahan standar tidak menimpa data lama.</p>
+                    <div class="flex flex-wrap items-center gap-3">
+                        <a href="Account/Login" class="inline-flex h-11 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-semibold text-on-primary no-underline shadow-sm shadow-primary/30 hover:bg-primary-dark hover:text-on-primary hover:no-underline">
+                            <GfIcon Icon="@Icons.Material.Filled.Login" Size="GfSize.Sm" />
+                            Masuk
+                        </a>
+                        <a href="#alur" class="inline-flex h-11 items-center rounded-lg border border-primary/40 bg-surface px-5 text-sm font-semibold text-primary no-underline hover:bg-primary/10 hover:text-primary hover:no-underline">Lihat alur</a>
+                    </div>
+                    <p class="mt-4 mb-0 text-[12px] text-muted">Akun dibuat oleh admin organisasi. Pendaftaran mandiri tidak dibuka.</p>
+                </NotAuthorized>
+            </AuthorizeView>
+        </div>
+
+        <div class="overflow-hidden rounded-2xl border border-line bg-surface shadow-xl shadow-primary/10">
+            <div class="h-1 bg-linear-to-r from-primary-dark via-primary to-secondary" aria-hidden="true"></div>
+            <div class="flex items-center justify-between gap-3 border-b border-line px-4 py-3">
+                <div>
+                    <p class="m-0 text-xs font-semibold text-ink">Form pelaporan</p>
+                    <p class="m-0 text-[11px] text-muted">Site Utara · periode 2026</p>
+                </div>
+                <span class="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary-dark">Terbuka</span>
+            </div>
+            <ul class="m-0 list-none divide-y divide-line p-0">
+                <li class="flex items-center gap-3 px-4 py-3">
+                    <span class="w-14 shrink-0 font-mono text-[11px] font-semibold text-muted">302</span>
+                    <span class="min-w-0 flex-1 text-[13px] font-medium text-ink">Energi</span>
+                    <span class="rounded-full bg-canvas px-2 py-0.5 text-[10px] font-semibold text-muted ring-1 ring-line">Draf</span>
+                </li>
+                <li class="flex items-center gap-3 px-4 py-3">
+                    <span class="w-14 shrink-0 font-mono text-[11px] font-semibold text-muted">303</span>
+                    <span class="min-w-0 flex-1 text-[13px] font-medium text-ink">Air dan efluen</span>
+                    <span class="rounded-full bg-secondary/15 px-2 py-0.5 text-[10px] font-semibold text-secondary-dark">Diajukan</span>
+                </li>
+                <li class="flex items-center gap-3 px-4 py-3">
+                    <span class="w-14 shrink-0 font-mono text-[11px] font-semibold text-muted">403</span>
+                    <span class="min-w-0 flex-1 text-[13px] font-medium text-ink">Keselamatan kerja</span>
+                    <span class="rounded-full bg-warning/15 px-2 py-0.5 text-[10px] font-semibold text-warning">Ditinjau</span>
+                </li>
+                <li class="flex items-center gap-3 px-4 py-3">
+                    <span class="w-14 shrink-0 font-mono text-[11px] font-semibold text-muted">305</span>
+                    <span class="min-w-0 flex-1 text-[13px] font-medium text-ink">Emisi</span>
+                    <span class="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary-dark">Disetujui</span>
+                </li>
+            </ul>
+            <p class="m-0 border-t border-line bg-canvas/80 px-4 py-2.5 text-[11px] text-muted">Ilustrasi alur. Bukan data organisasi.</p>
+        </div>
+    </div>
+</section>
+
+<section class="border-b border-line bg-surface" aria-label="Prinsip pelaporan">
+    <div class="mx-auto grid max-w-6xl gap-px bg-line sm:grid-cols-3">
+        <div class="bg-surface px-4 py-6 sm:px-6">
+            <p class="m-0 font-mono text-[11px] font-semibold text-primary">01</p>
+            <h2 class="mt-2 mb-1 text-sm">Jawaban tetap, definisi berversi</h2>
+            <p class="m-0 text-[13px] leading-relaxed text-muted">Data 2025 tetap dibaca dengan definisi yang berlaku di tahun itu. Versi baru tidak menimpa isian lama.</p>
+        </div>
+        <div class="bg-surface px-4 py-6 sm:px-6">
+            <p class="m-0 font-mono text-[11px] font-semibold text-primary">02</p>
+            <h2 class="mt-2 mb-1 text-sm">Satu form per site dan topik</h2>
+            <p class="m-0 text-[13px] leading-relaxed text-muted">Site dan tahun datang dari konteks akun serta periode, sehingga isian tidak tercecer di berkas terpisah.</p>
+        </div>
+        <div class="bg-surface px-4 py-6 sm:px-6">
+            <p class="m-0 font-mono text-[11px] font-semibold text-primary">03</p>
+            <h2 class="mt-2 mb-1 text-sm">Konsolidasi dari yang disetujui</h2>
+            <p class="m-0 text-[13px] leading-relaxed text-muted">Draf, pengajuan, dan tinjauan tetap di ruang kerja. Yang dikonsolidasikan hanya status Disetujui.</p>
+        </div>
+    </div>
+</section>
+
+<section id="fitur" class="scroll-mt-24 px-4 py-16 sm:px-6">
+    <div class="mx-auto max-w-6xl">
+        <p class="m-0 text-[11px] font-semibold tracking-wider text-primary uppercase">Fitur</p>
+        <h2 class="mt-2 mb-8 max-w-lg text-2xl tracking-tight text-ink">Yang dipakai tim site setiap periode</h2>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <article class="rounded-xl border border-line bg-surface p-5">
+                <span class="inline-flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <GfIcon Icon="@Icons.Material.Filled.Description" Size="GfSize.Sm" />
+                </span>
+                <h3 class="mt-3 mb-1">Definisi form berversi</h3>
+                <p class="m-0 text-[13px] leading-relaxed text-muted">Topik GRI dikonfigurasi dan diterbitkan tanpa mengubah jawaban tahun sebelumnya.</p>
+            </article>
+            <article class="rounded-xl border border-line bg-surface p-5">
+                <span class="inline-flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <GfIcon Icon="@Icons.Material.Filled.Save" Size="GfSize.Sm" />
+                </span>
+                <h3 class="mt-3 mb-1">Simpan otomatis</h3>
+                <p class="m-0 text-[13px] leading-relaxed text-muted">Isian draf tersimpan di server. Koneksi site yang putus tidak menghapus yang sudah terkirim.</p>
+            </article>
+            <article class="rounded-xl border border-line bg-surface p-5">
+                <span class="inline-flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <GfIcon Icon="@Icons.Material.Filled.FactCheck" Size="GfSize.Sm" />
+                </span>
+                <h3 class="mt-3 mb-1">Tinjauan berjenjang</h3>
+                <p class="m-0 text-[13px] leading-relaxed text-muted">Draf diajukan, ditinjau, lalu disetujui. Penolakan dan pembukaan kembali wajib disertai alasan.</p>
+            </article>
+            <article class="rounded-xl border border-line bg-surface p-5">
+                <span class="inline-flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <GfIcon Icon="@Icons.Material.Filled.Domain" Size="GfSize.Sm" />
+                </span>
+                <h3 class="mt-3 mb-1">Organisasi terpisah</h3>
+                <p class="m-0 text-[13px] leading-relaxed text-muted">Setiap organisasi punya site, periode, dan peran sendiri. Data tidak tercampur antar tenant.</p>
+            </article>
+            <article class="rounded-xl border border-line bg-surface p-5">
+                <span class="inline-flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <GfIcon Icon="@Icons.Material.Filled.Event" Size="GfSize.Sm" />
+                </span>
+                <h3 class="mt-3 mb-1">Periode yang bisa ditutup</h3>
+                <p class="m-0 text-[13px] leading-relaxed text-muted">Admin membuka tahun pelaporan. Setelah ditutup, seluruh form pada periode itu hanya dibaca.</p>
+            </article>
+            <article class="rounded-xl border border-line bg-surface p-5">
+                <span class="inline-flex size-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <GfIcon Icon="@Icons.Material.Filled.Verified" Size="GfSize.Sm" />
+                </span>
+                <h3 class="mt-3 mb-1">Hak sesuai peran</h3>
+                <p class="m-0 text-[13px] leading-relaxed text-muted">Kontributor, peninjau, dan penyetuju berlaku per site. Admin dan pembaca laporan berlaku untuk semua site.</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section id="alur" class="scroll-mt-24 border-y border-line bg-forest text-on-forest">
+    <div class="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+        <p class="m-0 text-[11px] font-semibold tracking-wider text-sprout uppercase">Alur</p>
+        <h2 class="mt-2 mb-8 max-w-lg text-2xl tracking-tight text-white">Dari isian site sampai siap dikonsolidasi</h2>
+        <ol class="m-0 grid list-none gap-4 p-0 md:grid-cols-5">
+            <li class="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
+                <span class="font-mono text-[11px] font-semibold text-sprout">01</span>
+                <h3 class="mt-2 mb-1 text-white">Isi</h3>
+                <p class="m-0 text-[12px] leading-relaxed text-on-forest/70">Kontributor mengisi form topik untuk site-nya. Status awal: Draf.</p>
+            </li>
+            <li class="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
+                <span class="font-mono text-[11px] font-semibold text-sprout">02</span>
+                <h3 class="mt-2 mb-1 text-white">Ajukan</h3>
+                <p class="m-0 text-[12px] leading-relaxed text-on-forest/70">Isian yang tersimpan diajukan. Peninjau menerima form berstatus Diajukan.</p>
+            </li>
+            <li class="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
+                <span class="font-mono text-[11px] font-semibold text-sprout">03</span>
+                <h3 class="mt-2 mb-1 text-white">Tinjau</h3>
+                <p class="m-0 text-[12px] leading-relaxed text-on-forest/70">Peninjau meloloskan ke Ditinjau, atau menolak beserta alasan agar diperbaiki.</p>
+            </li>
+            <li class="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
+                <span class="font-mono text-[11px] font-semibold text-sprout">04</span>
+                <h3 class="mt-2 mb-1 text-white">Setujui</h3>
+                <p class="m-0 text-[12px] leading-relaxed text-on-forest/70">Penyetuju mengunci form sebagai Disetujui, atau mengembalikannya dengan alasan.</p>
+            </li>
+            <li class="rounded-xl bg-white/5 p-4 ring-1 ring-white/10">
+                <span class="font-mono text-[11px] font-semibold text-sprout">05</span>
+                <h3 class="mt-2 mb-1 text-white">Gabungkan</h3>
+                <p class="m-0 text-[12px] leading-relaxed text-on-forest/70">Konsolidasi hanya mengambil form Disetujui. Admin dapat menutup periode.</p>
+            </li>
+        </ol>
+    </div>
+</section>
+
+<section id="peran" class="scroll-mt-24 px-4 py-16 sm:px-6">
+    <div class="mx-auto max-w-6xl">
+        <p class="m-0 text-[11px] font-semibold tracking-wider text-primary uppercase">Peran</p>
+        <h2 class="mt-2 mb-8 max-w-lg text-2xl tracking-tight text-ink">Siapa mengerjakan apa</h2>
+        <div class="grid gap-4 sm:grid-cols-2">
+            <article class="rounded-xl border border-line bg-surface p-5">
+                <div class="mb-2 flex items-center gap-2">
+                    <GfIcon Icon="@Icons.Material.Filled.EditNote" Size="GfSize.Sm" Class="text-primary" />
+                    <h3 class="m-0">Kontributor</h3>
+                </div>
+                <p class="m-0 text-[13px] leading-relaxed text-muted">Mengisi dan mengajukan form pada site yang ditugaskan. Draf yang ditolak bisa diajukan ulang.</p>
+            </article>
+            <article class="rounded-xl border border-line bg-surface p-5">
+                <div class="mb-2 flex items-center gap-2">
+                    <GfIcon Icon="@Icons.Material.Filled.FactCheck" Size="GfSize.Sm" Class="text-primary" />
+                    <h3 class="m-0">Peninjau</h3>
+                </div>
+                <p class="m-0 text-[13px] leading-relaxed text-muted">Memeriksa form yang sudah diajukan, lalu menandai ditinjau atau menolak dengan komentar.</p>
+            </article>
+            <article class="rounded-xl border border-line bg-surface p-5">
+                <div class="mb-2 flex items-center gap-2">
+                    <GfIcon Icon="@Icons.Material.Filled.Verified" Size="GfSize.Sm" Class="text-primary" />
+                    <h3 class="m-0">Penyetuju</h3>
+                </div>
+                <p class="m-0 text-[13px] leading-relaxed text-muted">Menyetujui form yang sudah ditinjau, atau mengembalikannya. Hanya status ini yang masuk konsolidasi.</p>
+            </article>
+            <article class="rounded-xl border border-line bg-surface p-5">
+                <div class="mb-2 flex items-center gap-2">
+                    <GfIcon Icon="@Icons.Material.Filled.Settings" Size="GfSize.Sm" Class="text-primary" />
+                    <h3 class="m-0">Admin organisasi</h3>
+                </div>
+                <p class="m-0 text-[13px] leading-relaxed text-muted">Mengelola periode, site, dan peran. Dapat membuka kembali form yang sudah disetujui, dengan alasan.</p>
+            </article>
+        </div>
+        <p class="mt-4 mb-0 text-[13px] text-muted">Pembaca laporan melihat form semua site di organisasi tanpa mengubah isian.</p>
+    </div>
+</section>
+
+<section class="px-4 pb-16 sm:px-6">
+    <div class="mx-auto max-w-6xl overflow-hidden rounded-2xl bg-linear-to-br from-forest-deep via-primary-dark to-primary px-6 py-10 text-white shadow-lg shadow-forest/20 sm:px-10">
+        <h2 class="mb-2 text-2xl tracking-tight text-white">Siap mengerjakan periode ini?</h2>
+        <p class="mb-6 max-w-lg text-sm leading-relaxed text-white/80">Masuk dengan akun yang diberikan admin. Setelah itu, daftar form mengikuti site dan peran Anda.</p>
+        <AuthorizeView>
+            <Authorized>
+                <a href="pelaporan" class="inline-flex h-11 items-center gap-2 rounded-lg bg-sprout px-5 text-sm font-semibold text-forest-deep no-underline hover:bg-white hover:text-forest-deep hover:no-underline">
+                    Buka pelaporan
+                    <GfIcon Icon="@Icons.Material.Filled.ArrowForward" Size="GfSize.Sm" />
+                </a>
+            </Authorized>
+            <NotAuthorized>
+                <a href="Account/Login" class="inline-flex h-11 items-center gap-2 rounded-lg bg-sprout px-5 text-sm font-semibold text-forest-deep no-underline hover:bg-white hover:text-forest-deep hover:no-underline">
+                    <GfIcon Icon="@Icons.Material.Filled.Login" Size="GfSize.Sm" />
+                    Masuk
+                </a>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</section>
